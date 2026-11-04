@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+.screenshots/
+.cache-log.jsonl
+*.tsbuildinfo
+*.log
+.env*
+.DS_Store
+Thumbs.db

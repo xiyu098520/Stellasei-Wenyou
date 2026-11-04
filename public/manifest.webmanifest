@@ -1,0 +1,17 @@
+{
+  "name": "文游",
+  "short_name": "文游",
+  "description": "给一个世界观，AI 演这个世界里的所有人。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FCFAF6",
+  "theme_color": "#FCFAF6",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

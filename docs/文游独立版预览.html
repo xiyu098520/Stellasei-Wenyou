@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>文游 · 独立版预览</title>
+<link rel="stylesheet" href="../public/fonts/kinghwa-oldsong.css" />
+<style>
+  :root {
+    --page: #EFECE4;
+    --paper: #FCFAF6;
+    --ink: #1F1C1A;
+    --ink-2: #57504A;
+    --ink-3: #9A9089;
+    --ink-4: #C2B9B0;
+    --line: rgba(31, 28, 26, .10);
+    --line-soft: rgba(31, 28, 26, .055);
+    --blue: #3F5E8C;
+    --pink: #C4667C;
+    --gold: #9A7B3F;
+    --seal: #A6493A;
+    --seal-soft: rgba(166, 73, 58, .10);
+    --serif: "KingHwa OldSong", "Noto Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(620px 380px at 14% 0%, rgba(166,73,58,.05), transparent 70%),
+      radial-gradient(620px 380px at 88% 8%, rgba(63,94,140,.045), transparent 70%),
+      var(--page);
+    color: var(--ink);
+    font-family: var(--serif);
+    padding: 46px 28px 64px;
+  }
+  .head { max-width: 1040px; margin: 0 auto 40px; }
+  .head h1 { font-size: 21px; font-weight: 500; letter-spacing: .2em; text-shadow: 3px 2px 0 rgba(166,73,58,.13); }
+  .head p { margin-top: 12px; font-size: 12.5px; line-height: 2; color: var(--ink-3); letter-spacing: .04em; max-width: 760px; }
+  .head .keys { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .head .keys span {
+    font-size: 10px; letter-spacing: .08em; color: var(--ink-2);
+    padding: 6px 10px; border: 1px solid var(--line); background: rgba(255,255,255,.5);
+  }
+
+  .stage { display: flex; gap: 40px; justify-content: center; align-items: flex-start; flex-wrap: wrap; max-width: 1340px; margin: 0 auto; }
+  .col { width: 390px; }
+
+  .screen {
+    position: relative; width: 390px; height: 844px; overflow: hidden;
+    background: var(--paper);
+    border: 1px solid rgba(31,28,26,.13);
+    box-shadow: 0 30px 56px -34px rgba(31,28,26,.38), 0 2px 6px rgba(31,28,26,.05);
+  }
+  .screen .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.055'/%3E%3C/svg%3E");
+  }
+  .screen::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.5), inset 0 0 46px rgba(31,28,26,.028);
+  }
+  .pad { position: relative; height: 100%; padding: 58px 26px 28px; display: flex; flex-direction: column; }
+
+  /* ══════════ 通用顶行 ══════════ */
+  .topbar { display: flex; align-items: baseline; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid var(--line); }
+  .topbar .where { font-size: 12px; letter-spacing: .1em; color: var(--ink-2); }
+  .topbar .where u { text-decoration: none; color: var(--ink-4); margin-right: 6px; font-size: 11px; }
+  .topbar .where::before {
+    content: ""; display: inline-block; width: 5px; height: 5px; background: var(--seal);
+    margin-right: 8px; vertical-align: 2px;
+  }
+  .tabs { margin-left: auto; display: flex; gap: 14px; }
+  .tabs span { font-size: 9.5px; letter-spacing: .22em; color: var(--ink-4); padding-bottom: 4px; border-bottom: 1px solid transparent; }
+  .tabs span.on { color: var(--ink); border-bottom-color: var(--seal); }
+
+  /* ══════════ ① 我的世界 ══════════ */
+  .mastline { width: 26px; height: 2px; background: var(--seal); margin-bottom: 16px; }
+  .topline { display: flex; align-items: baseline; justify-content: space-between; }
+  .topline h1 { font-size: 28px; font-weight: 500; letter-spacing: .2em; text-shadow: 3px 2px 0 rgba(166,73,58,.10); }
+  .topline .right { display: flex; align-items: baseline; gap: 14px; }
+  .topline span { font-family: var(--mono); font-size: 8.5px; letter-spacing: .1em; color: var(--ink-4); }
+  .setbtn {
+    font-family: var(--serif); font-size: 9.5px; letter-spacing: .16em; color: var(--ink-3);
+    background: none; border: none; cursor: pointer;
+    padding: 0 0 2px; border-bottom: 1px solid rgba(31,28,26,.16);
+  }
+
+  .shelf { margin-top: 32px; flex: 1; overflow: hidden; }
+  .wcard {
+    position: relative; height: 190px; margin-bottom: 22px; overflow: hidden;
+    background: #EFEAE1; border: 1px solid rgba(31,28,26,.12);
+    box-shadow: 0 12px 24px -22px rgba(31,28,26,.5);
+  }
+  /* 网点：只在封面一角，让人看得出是印上去的 */
+  .wcard::after {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background-image: radial-gradient(rgba(31,28,26,.55) .7px, transparent .8px);
+    background-size: 4px 4px; opacity: .18;
+    -webkit-mask-image: radial-gradient(70% 62% at 84% 10%, #000 0%, transparent 68%);
+    mask-image: radial-gradient(70% 62% at 84% 10%, #000 0%, transparent 68%);
+  }
+  .defcover {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.58), rgba(255,255,255,0) 55%),
+      radial-gradient(115% 90% at 16% 4%, var(--tint, rgba(196,102,124,.20)), transparent 65%),
+      linear-gradient(160deg, #F8F4ED, #EAE4D9);
+  }
+  .defcover::before { content: ""; position: absolute; inset: 10px; border: 1px solid rgba(31,28,26,.075); }
+  .defcover::after {
+    content: ""; position: absolute; left: 50%; top: 32%; width: 24px; height: 24px;
+    transform: translate(-50%,-50%) rotate(45deg); border: 1px solid rgba(31,28,26,.14);
+  }
+  .shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(252,250,246,0) 42%, rgba(252,250,246,.80) 71%, rgba(252,250,246,.965) 100%);
+  }
+  .widx {
+    position: absolute; top: 11px; left: 13px; z-index: 3;
+    font-family: var(--mono); font-size: 8px; letter-spacing: .12em; color: rgba(31,28,26,.42);
+  }
+  .tools { position: absolute; top: 9px; right: 9px; z-index: 3; display: flex; gap: 6px; }
+  .tools button {
+    font-family: var(--serif); font-size: 8.5px; letter-spacing: .1em; cursor: pointer;
+    padding: 4px 8px; border: 1px solid rgba(31,28,26,.13);
+    background: rgba(252,250,246,.86); color: var(--ink-2);
+  }
+  .winfo { position: absolute; left: 15px; right: 15px; bottom: 12px; z-index: 2; }
+  .winfo .src {
+    display: inline-block; font-size: 8px; letter-spacing: .12em; color: var(--ink-3);
+    padding-bottom: 2px; border-bottom: 1px solid rgba(31,28,26,.12);
+  }
+  .winfo h3 { margin-top: 7px; font-size: 20px; font-weight: 500; letter-spacing: .2em; }
+  .wline { margin-top: 6px; display: flex; align-items: center; gap: 10px; font-size: 9.5px; color: var(--ink-3); letter-spacing: .05em; }
+  .wline i { font-style: normal; color: var(--ink-4); margin: 0 4px; }
+  .faces { margin-left: auto; display: flex; }
+  .faces b {
+    width: 19px; height: 19px; border-radius: 50%; margin-left: -5px;
+    display: grid; place-items: center; font-size: 8px; font-weight: 400;
+    background: #F4F1EC; border: 1px solid rgba(31,28,26,.12); color: var(--ink-2);
+  }
+  .faces b:first-child { margin-left: 0; }
+  .newline {
+    margin-top: 4px; padding: 16px 2px 0; border-top: 1px dashed var(--line);
+    font-size: 11.5px; letter-spacing: .16em; color: var(--ink-2);
+  }
+  .newline u { text-decoration: none; color: var(--seal); margin-right: 6px; }
+
+  /* ══════════ ② 开演 ══════════ */
+  .chap { margin-top: 16px; display: flex; align-items: baseline; gap: 8px; font-size: 9px; letter-spacing: .06em; color: var(--ink-4); }
+  .chap b { font-weight: 400; color: var(--ink-2); letter-spacing: .1em; }
+  .chap b::before { content: ""; display: inline-block; width: 4px; height: 4px; background: var(--seal); margin-right: 7px; vertical-align: 2px; }
+  .chap .n { margin-left: auto; font-family: var(--mono); }
+  .chap .rev { margin-left: 11px; font-size: 9px; letter-spacing: .08em; color: var(--seal); text-decoration: none; cursor: pointer; }
+
+  .story { margin-top: 20px; flex: 1; overflow: hidden; }
+  .blk { margin-bottom: 22px; }
+  .narr { font-size: 13px; line-height: 2.05; color: var(--ink-2); letter-spacing: .03em; }
+  .act { font-size: 13px; line-height: 2.05; color: var(--ink-3); letter-spacing: .03em; }
+  .act::before { content: ""; display: inline-block; width: 9px; height: 1px; background: var(--line); vertical-align: middle; margin-right: 8px; }
+  .say { border-left: 1px solid rgba(166,73,58,.30); padding-left: 11px; }
+  .sayer { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .say .who { font-size: 9px; letter-spacing: .24em; color: var(--ink-2); }
+  .say .face { width: 20px; height: 20px; font-size: 9px; }
+  .face {
+    position: relative; flex: none; display: grid; place-items: center; overflow: hidden;
+    background: var(--seal-soft); border: 1px solid rgba(166,73,58,.45); color: var(--seal);
+  }
+  .face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(.92) contrast(.96); }
+  .say p { font-size: 14.5px; line-height: 1.95; letter-spacing: .04em; color: var(--ink); }
+  .say p::before { content: "「"; color: var(--ink-4); }
+  .say p::after { content: "」"; color: var(--ink-4); }
+
+  .composer { padding-bottom: 2px; }
+  .chips { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+  .chip {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.72);
+    padding: 9px 11px; font-size: 11.5px; color: var(--ink-2); letter-spacing: .03em;
+  }
+  .chip em { font-style: normal; font-family: var(--mono); font-size: 8.5px; color: var(--seal); opacity: .75; flex: none; }
+  .inputbar {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--line); background: #fff; padding: 11px 12px;
+    box-shadow: 0 1px 0 rgba(31,28,26,.03);
+  }
+  .inputbar .ph { flex: 1; font-size: 12px; color: var(--ink-4); letter-spacing: .04em; }
+  .inputbar .send { width: 24px; height: 24px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--seal); color: #FBF3EE; font-size: 11px; }
+  .hint { margin-top: 9px; text-align: center; font-size: 8.5px; letter-spacing: .18em; color: var(--ink-4); }
+
+  /* ══════════ ③ 设定 ══════════ */
+  .oneline { margin-top: 16px; font-size: 11.5px; line-height: 1.9; color: var(--ink-2); letter-spacing: .04em; }
+  .srcbar {
+    margin: 14px 0 4px; padding: 9px 0;
+    border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 9px; letter-spacing: .04em; color: var(--ink-3);
+  }
+  .srcbar i { width: 1px; height: 9px; background: var(--line); }
+  .srcbar u { margin-left: auto; text-decoration: none; color: var(--seal); font-size: 9px; }
+
+  /* 待办像一张贴上去的便条，不是系统提示条 */
+  .netbar {
+    position: relative; margin-top: 14px; padding: 11px 11px 10px;
+    background: #FBF5E9; border: 1px solid rgba(154,123,63,.22);
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 5px 12px -10px rgba(31,28,26,.5);
+  }
+  .netbar::before {
+    content: ""; position: absolute; top: -5px; left: 16px; width: 40px; height: 10px;
+    background: rgba(166,73,58,.18); transform: rotate(-2.5deg);
+  }
+  .netbar b { display: block; font-size: 10.5px; font-weight: 500; letter-spacing: .04em; }
+  .netbar em { display: block; margin-top: 3px; font-style: normal; font-size: 9px; color: var(--ink-3); }
+  .netbar u { margin-left: auto; flex: none; font-size: 9.5px; color: var(--seal); text-decoration: none; }
+
+  .toc { margin-top: 24px; }
+  .tochead {
+    display: flex; align-items: baseline; gap: 10px;
+    padding-bottom: 9px; border-bottom: 1px solid var(--line);
+  }
+  .tochead b { font-size: 10.5px; font-weight: 500; letter-spacing: .2em; color: var(--ink-2); }
+  .tochead b::before {
+    content: ""; display: inline-block; width: 4px; height: 4px; background: var(--seal);
+    margin-right: 7px; vertical-align: 2px;
+  }
+  .tochead span { margin-left: auto; font-family: var(--mono); font-size: 8px; letter-spacing: .1em; color: var(--ink-4); }
+  .trow { display: flex; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+  .trow b { font-size: 12px; font-weight: 500; letter-spacing: .1em; color: var(--ink-2); }
+  .trow em { font-style: normal; font-size: 9px; letter-spacing: .04em; color: var(--ink-4); }
+  .lead { flex: 1; margin: 0 9px; border-bottom: 1px dotted rgba(31,28,26,.26); transform: translateY(-3px); }
+  .trow.empty b, .trow.empty em { color: var(--ink-4); }
+  .tadd { margin-top: 14px; padding: 11px; border: 1px dashed var(--line); text-align: center; font-size: 10px; letter-spacing: .16em; color: var(--ink-3); }
+  .meta { margin-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 9px; letter-spacing: .04em; color: var(--ink-4); }
+  .meta b { font-weight: 400; color: var(--ink-3); }
+  .meta i { width: 1px; height: 9px; background: var(--line); }
+  .meta u { margin-left: auto; text-decoration: none; font-size: 9.5px; color: var(--seal); }
+
+  .colophon { margin-top: auto; padding-top: 16px; }
+  .colophon .rule { height: 1px; background: var(--line); }
+  .colophon .act { margin-top: 14px; display: flex; align-items: baseline; gap: 14px; }
+  .colophon .aside { font-size: 10px; letter-spacing: .1em; color: var(--ink-2); }
+  .colophon .aside::before { content: ""; display: inline-block; width: 4px; height: 4px; background: var(--seal); margin-right: 7px; vertical-align: 2px; }
+  .colophon .aside em { font-style: normal; color: var(--ink-4); font-size: 9px; margin-left: 5px; }
+  .colophon .go { margin-left: auto; font-size: 13.5px; letter-spacing: .18em; color: var(--ink); }
+  .colophon .go u { text-decoration: none; color: var(--seal); margin-left: 6px; }
+
+  /* ══════════ ④ 人物 ══════════ */
+  .clist { margin-top: 20px; flex: 1; overflow: hidden; }
+  .crow {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 0; border-bottom: 1px solid var(--line-soft);
+  }
+  .crow .face {
+    width: 44px; height: 44px; font-size: 15px; letter-spacing: 0;
+  }
+  .crow .txt { flex: 1; min-width: 0; }
+  .crow h4 { font-size: 13.5px; font-weight: 500; letter-spacing: .1em; }
+  .crow h4 i { font-style: normal; font-family: var(--mono); font-size: 7.5px; letter-spacing: .06em; color: var(--ink-4); margin-left: 7px; vertical-align: 2px; }
+  .crow p { margin-top: 5px; font-size: 10px; line-height: 1.8; color: var(--ink-3); letter-spacing: .03em; }
+  .crow .vo { display: block; margin-top: 5px; font-size: 9px; letter-spacing: .05em; color: var(--ink-4); }
+  .crow .vo em { font-style: normal; font-family: var(--mono); font-size: 8.5px; letter-spacing: .01em; color: var(--ink-3); }
+  .crow u { align-self: center; font-size: 10px; color: var(--ink-4); text-decoration: none; }
+  .crow.add .face { background: transparent; border: 1px dashed rgba(166,73,58,.4); color: var(--seal); }
+  .cfoot { font-size: 9px; letter-spacing: .06em; color: var(--ink-4); padding-top: 12px; border-top: 1px solid var(--line-soft); }
+
+  /* ══════════ ⑤ 设置 ══════════ */
+  .setintro { margin-top: 13px; font-size: 10.5px; line-height: 1.95; color: var(--ink-3); letter-spacing: .04em; }
+  .sec { margin-top: 26px; }
+  .sec-h { display: flex; align-items: baseline; gap: 9px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+  .sec-h i { font-style: normal; font-family: var(--mono); font-size: 8px; letter-spacing: .1em; color: var(--ink-4); }
+  .sec-h b { font-size: 11.5px; font-weight: 500; letter-spacing: .18em; color: var(--ink); }
+  .sec-h em {
+    margin-left: auto; font-style: normal; display: flex; align-items: center; gap: 5px;
+    font-size: 8.5px; letter-spacing: .14em; color: var(--ink-4);
+  }
+  .sec-h em::before { content: ""; width: 4px; height: 4px; border: 1px solid var(--ink-4); }
+  .sec-h em.on { color: var(--seal); }
+  .sec-h em.on::before { background: var(--seal); border-color: var(--seal); }
+  .frow { display: flex; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+  .frow .k { width: 52px; flex: none; font-size: 9.5px; letter-spacing: .12em; color: var(--ink-3); }
+  .frow .v { font-size: 11.5px; letter-spacing: .04em; color: var(--ink-2); }
+  .frow .v.mono { font-family: var(--mono); font-size: 10.5px; letter-spacing: .01em; }
+  .frow u { margin-left: auto; flex: none; text-decoration: none; font-size: 9.5px; color: var(--seal); }
+  .sec-note { margin-top: 9px; font-size: 9px; line-height: 1.85; color: var(--ink-4); letter-spacing: .04em; }
+  .sec.muted .frow .k, .sec.muted .frow .v { color: var(--ink-4); }
+  .sec.muted .frow u { color: var(--ink-3); }
+  .setnote {
+    margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--line-soft);
+    font-size: 9.5px; line-height: 1.9; color: var(--ink-4); letter-spacing: .04em;
+  }
+  .setfoot {
+    margin-top: auto; padding-top: 14px; display: flex; align-items: baseline;
+    font-family: var(--mono); font-size: 8.5px; letter-spacing: .1em; color: var(--ink-4);
+  }
+  .setfoot span:last-child { margin-left: auto; }
+
+  /* ══════════ ⑥ 回顾 ══════════ */
+  .revhead { display: flex; align-items: baseline; justify-content: space-between; margin-top: 20px; }
+  .revhead h1 { font-size: 24px; font-weight: 500; letter-spacing: .2em; text-shadow: 2px 1px 0 rgba(166,73,58,.10); }
+  .revhead span { font-family: var(--mono); font-size: 8.5px; letter-spacing: .1em; color: var(--ink-4); }
+  .summary {
+    margin-top: 16px; padding-left: 11px; border-left: 1px solid rgba(166,73,58,.30);
+    font-size: 12px; line-height: 2; color: var(--ink-2); letter-spacing: .03em;
+  }
+  .revscroll { flex: 1; overflow: hidden; }
+  .crow.mem { padding: 12px 0; }
+  .crow.mem .face { width: 34px; height: 34px; font-size: 12px; }
+
+  .cap { margin-top: 18px; padding: 0 2px; }
+  .cap b { display: block; font-size: 12.5px; font-weight: 500; letter-spacing: .14em; color: var(--ink-2); }
+  .cap span { display: block; margin-top: 8px; font-size: 10.5px; line-height: 1.9; color: var(--ink-3); letter-spacing: .03em; }
+
+  @media (max-width: 880px) {
+    body { padding: 28px 14px 48px; }
+    .stage { gap: 36px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>文游 · 独立版预览</h1>
+  <p>点一个世界，直接进「开演」；设定和人物在旁边，得自己切过去。设置单独一页，页脚留着回顾。头像只出现在说话的人身上，旁白和动作不受影响。</p>
+  <div class="keys">
+    <span>点世界 = 直接开演</span>
+    <span>设定与人物分开</span>
+    <span>人物可换头像 · 可新建人物</span>
+    <span>台词才带头像</span>
+    <span>回顾：章节 / 记忆 / 欠账</span>
+    <span>目录写「新建目录」</span>
+    <span>设置：文本 / 语音 / 图片</span>
+  </div>
+</div>
+
+<div class="stage">
+
+  <!-- ═════════ ① 我的世界 ═════════ -->
+  <div class="col">
+    <div class="screen">
+      <div class="grain"></div>
+      <div class="pad">
+        <div class="mastline"></div>
+        <div class="topline">
+          <h1>我的世界</h1>
+          <div class="right">
+            <span>03</span>
+            <button type="button" class="setbtn">设置</button>
+          </div>
+        </div>
+
+        <div class="shelf">
+          <article class="wcard">
+            <div class="defcover" style="--tint:rgba(150,110,180,.22)"></div>
+            <span class="widx">01</span>
+            <div class="shade"></div>
+            <div class="tools"><button type="button">换封面</button><button type="button">⋯</button></div>
+            <div class="winfo">
+              <span class="src">原著 · 崩坏：星穹铁道</span>
+              <h3>星球学院</h3>
+              <div class="wline">
+                <span>第一章 · 开学日<i>·</i>42 回合<i>·</i>昨天 20:14</span>
+                <span class="faces"><b>砂</b><b>丹</b><b>真</b></span>
+              </div>
+            </div>
+          </article>
+
+          <article class="wcard">
+            <div class="defcover" style="--tint:rgba(63,94,140,.20)"></div>
+            <span class="widx">02</span>
+            <div class="shade"></div>
+            <div class="tools"><button type="button">换封面</button><button type="button">⋯</button></div>
+            <div class="winfo">
+              <span class="src">原创 · 无原著</span>
+              <h3>雾港来信</h3>
+              <div class="wline">
+                <span>序章 · 到港<i>·</i>7 回合<i>·</i>09/08 22:41</span>
+                <span class="faces"><b>沈</b></span>
+              </div>
+            </div>
+          </article>
+
+          <article class="wcard">
+            <div class="defcover" style="--tint:rgba(154,123,63,.20)"></div>
+            <span class="widx">03</span>
+            <div class="shade"></div>
+            <div class="tools"><button type="button">换封面</button><button type="button">⋯</button></div>
+            <div class="winfo">
+              <span class="src">原创 · 无原著</span>
+              <h3>提瓦特学园</h3>
+              <div class="wline"><span>还没有开始<i>·</i>0 回合</span></div>
+            </div>
+          </article>
+
+          <div class="newline"><u>＋</u>开一个新世界</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">
+      <b>① 我的世界</b>
+      <span>封面即卡。角落里那点网点是印上去的。<br/>点封面进去，直接就是上次停下的那一段。</span>
+    </div>
+  </div>
+
+  <!-- ═════════ ② 开演 ═════════ -->
+  <div class="col">
+    <div class="screen">
+      <div class="grain"></div>
+      <div class="pad">
+
+        <div class="topbar">
+          <span class="where"><u>‹</u>星球学院</span>
+          <span class="tabs"><span class="on">开演</span><span>设定</span><span>人物</span></span>
+        </div>
+
+        <div class="chap">
+          <b>第一章 · 开学日</b>
+          <span class="n">42 回合</span>
+          <span class="rev">回顾 ›</span>
+        </div>
+
+        <div class="story">
+          <div class="blk narr">雨停在窗外。走廊里只剩灯管轻轻响，地板上一排水痕，一路铺到门口。</div>
+
+          <div class="blk act">我把伞收起来，靠在门边，抬头看了一眼门牌。</div>
+
+          <div class="blk say">
+            <div class="sayer">
+              <span class="face"><img src="https://trae-api-cn.mchost.guru/api/ide/v1/tool_text_to_image?prompt=editorial%20portrait%20of%20a%20young%20man%20with%20short%20blond%20hair%2C%20pale%20violet%20eyes%2C%20faint%20smile%2C%20dark%20navy%20school%20blazer%2C%20soft%20window%20light%2C%20muted%20warm%20film%20tones%2C%20painterly%2C%20head%20and%20shoulders&image_size=square" alt="" onerror="this.remove()" />砂</span>
+              <span class="who">砂金</span>
+            </div>
+            <p>第一天就迟到，你倒是很有底气。</p>
+          </div>
+
+          <div class="blk narr">他靠在窗台上，手里转着一支笔，没打算让开。</div>
+        </div>
+
+        <div class="composer">
+          <div class="chips">
+            <div class="chip"><em>一</em>我在找三年级的教室。</div>
+            <div class="chip"><em>二</em>你管得着吗。</div>
+            <div class="chip"><em>三</em>那你带我过去。</div>
+          </div>
+          <div class="inputbar">
+            <span class="ph">写一句你想做的…</span>
+            <span class="send">↗</span>
+          </div>
+          <div class="hint">点选项是填进输入框，不直接发</div>
+        </div>
+
+      </div>
+    </div>
+    <div class="cap">
+      <b>② 开演</b>
+      <span>点世界进来的第一页。只有台词带一张小头像，旁白和动作不带。<br/>章节行右边是回顾，设定和人物在右上。</span>
+    </div>
+  </div>
+
+  <!-- ═════════ ③ 设定 ═════════ -->
+  <div class="col">
+    <div class="screen">
+      <div class="grain"></div>
+      <div class="pad">
+
+        <div class="topbar">
+          <span class="where"><u>‹</u>星球学院</span>
+          <span class="tabs"><span>开演</span><span class="on">设定</span><span>人物</span></span>
+        </div>
+
+        <p class="oneline">命途还在，但没有战争的一所大学。你是刚报到的大一新生。</p>
+
+        <div class="srcbar">
+          <span>原著 · 崩坏：星穹铁道</span><i></i><span>联网 · 开</span>
+          <u>改</u>
+        </div>
+
+        <div class="netbar">
+          <div>
+            <b>联网查回 26 条</b>
+            <em>已写进 8 条</em>
+          </div>
+          <u>过一眼 ›</u>
+        </div>
+
+        <div class="toc">
+          <div class="tochead"><b>目录</b><span>第 3 稿</span></div>
+          <div class="trow"><b>世界总览</b><i class="lead"></i><em>6 条</em></div>
+          <div class="trow"><b>地点</b><i class="lead"></i><em>4 个</em></div>
+          <div class="trow"><b>文风</b><i class="lead"></i><em>3 条</em></div>
+          <div class="trow"><b>种族与命途</b><i class="lead"></i><em>4 族</em></div>
+          <div class="trow"><b>学院规则</b><i class="lead"></i><em>5 条</em></div>
+
+          <div class="tadd">＋ 新建目录</div>
+
+          <div class="meta">
+            <span>已确认 <b>9 / 14</b></span><i></i><span>坑位 <b>0</b></span>
+            <u>看清单 ›</u>
+          </div>
+        </div>
+
+        <footer class="colophon">
+          <div class="rule"></div>
+          <div class="act">
+            <span class="aside">AI 小助手<em>帮你想</em></span>
+            <span class="go">去开演<u>→</u></span>
+          </div>
+        </footer>
+
+      </div>
+    </div>
+    <div class="cap">
+      <b>③ 设定</b>
+      <span>只放世界观。联网那条像一张贴上去的便条。<br/>人物不在这里了，它有自己的地方。</span>
+    </div>
+  </div>
+
+  <!-- ═════════ ④ 人物 ═════════ -->
+  <div class="col">
+    <div class="screen">
+      <div class="grain"></div>
+      <div class="pad">
+
+        <div class="topbar">
+          <span class="where"><u>‹</u>星球学院</span>
+          <span class="tabs"><span>开演</span><span>设定</span><span class="on">人物</span></span>
+        </div>
+
+        <div class="clist">
+          <div class="crow">
+            <span class="face"><img src="https://trae-api-cn.mchost.guru/api/ide/v1/tool_text_to_image?prompt=editorial%20portrait%20of%20a%20young%20man%20with%20short%20blond%20hair%2C%20pale%20violet%20eyes%2C%20faint%20smile%2C%20dark%20navy%20school%20blazer%2C%20soft%20window%20light%2C%20muted%20warm%20film%20tones%2C%20painterly%2C%20head%20and%20shoulders&image_size=square" alt="" onerror="this.remove()" />砂</span>
+            <div class="txt">
+              <h4>砂金<i>01</i></h4>
+              <p>学生会副会长 · 二年级<br/>爱用问句，句尾总带一点笑</p>
+              <span class="vo">音色 ID · <em>TxGEqnHWrfWFTfGW9XjX</em></span>
+            </div>
+            <u>›</u>
+          </div>
+
+          <div class="crow">
+            <span class="face"><img src="https://trae-api-cn.mchost.guru/api/ide/v1/tool_text_to_image?prompt=editorial%20portrait%20of%20a%20young%20man%20with%20long%20dark%20hair%2C%20calm%20quiet%20expression%2C%20dark%20green%20jacket%2C%20cool%20soft%20light%2C%20muted%20film%20tones%2C%20painterly%2C%20head%20and%20shoulders&image_size=square" alt="" onerror="this.remove()" />丹</span>
+            <div class="txt">
+              <h4>丹恒<i>02</i></h4>
+              <p>二年级 · 不爱说话<br/>一句一顿，能不说就不说</p>
+              <span class="vo">音色 ID · <em>pNInz6obpgDQGcFmaJgB</em></span>
+            </div>
+            <u>›</u>
+          </div>
+
+          <div class="crow">
+            <span class="face">真</span>
+            <div class="txt">
+              <h4>真<i>03</i></h4>
+              <p>原创 · 你的室友<br/>说话很快，爱抢话</p>
+              <span class="vo">音色 ID · <em>EXAVITQu4vr4xnSDxMaL</em></span>
+            </div>
+            <u>›</u>
+          </div>
+
+          <div class="crow add">
+            <span class="face">＋</span>
+            <div class="txt">
+              <h4 style="color:var(--ink-2)">新建人物</h4>
+              <p>贴一段原文，或者说个人名</p>
+            </div>
+            <u>›</u>
+          </div>
+        </div>
+
+        <div class="cfoot">12 张 · 头像、音色、设定，点开就能改</div>
+
+        <footer class="colophon">
+          <div class="rule"></div>
+          <div class="act">
+            <span class="aside">AI 小助手<em>帮你写卡</em></span>
+            <span class="go">新建人物<u>→</u></span>
+          </div>
+        </footer>
+
+      </div>
+    </div>
+    <div class="cap">
+      <b>④ 人物</b>
+      <span>头像在卡里换；音色只填一个 ID，服务商和 Key 由设置统一给。<br/>没填的人，用设置里的默认音色。</span>
+    </div>
+  </div>
+
+  <!-- ═════════ ⑤ 设置 ═════════ -->
+  <div class="col">
+    <div class="screen">
+      <div class="grain"></div>
+      <div class="pad">
+
+        <div class="topbar">
+          <span class="where"><u>‹</u>我的世界</span>
+        </div>
+
+        <div class="mastline" style="margin-top:22px"></div>
+        <div class="topline">
+          <h1>设置</h1>
+          <div class="right"><span>05</span></div>
+        </div>
+
+        <p class="setintro">Key 存在本机，不进剧本文件。</p>
+
+        <section class="sec">
+          <div class="sec-h"><i>01</i><b>文本</b><em class="on">已接</em></div>
+          <div class="frow"><span class="k">服务商</span><span class="v">自定义</span><u>换</u></div>
+          <div class="frow"><span class="k">地址</span><span class="v mono">api.deepseek.com/v1</span></div>
+          <div class="frow"><span class="k">模型</span><span class="v mono">deepseek-chat</span></div>
+          <div class="frow"><span class="k">Key</span><span class="v mono">sk-••••••8b2c</span><u>改</u></div>
+          <div class="frow"><span class="k">连接</span><span class="v">正常 · 3 分钟前</span><u>测一下</u></div>
+        </section>
+
+        <section class="sec">
+          <div class="sec-h"><i>02</i><b>语音</b><em class="on">已接</em></div>
+          <div class="frow"><span class="k">服务商</span><span class="v">ElevenLabs</span><u>换</u></div>
+          <div class="frow"><span class="k">Key</span><span class="v mono">sk_••••••8c4d</span><u>改</u></div>
+          <div class="frow"><span class="k">默认音色</span><span class="v mono">21m00Tcm4TlvDq8ikWAM</span><u>换</u></div>
+          <div class="sec-note">所有人物都用这里的服务商和 Key。音色能在人物卡里单独填 ID，没填就用默认。</div>
+        </section>
+
+        <section class="sec muted">
+          <div class="sec-h"><i>03</i><b>图片</b><em>未接</em></div>
+          <div class="frow"><span class="k">用途</span><span class="v">生成封面</span><u>接入 ›</u></div>
+        </section>
+
+        <div class="setnote">Key 只存在这台设备上，不上传，换设备要重新填。</div>
+
+        <div class="setfoot"><span>剧本与存档也在本机</span><span>v0.1.0</span></div>
+
+      </div>
+    </div>
+    <div class="cap">
+      <b>⑤ 设置</b>
+      <span>服务商和 Key 填一次，全应用共用；音色按人分。<br/>图片那一格空着，等以后接封面生成。</span>
+    </div>
+  </div>
+
+  <!-- ═════════ ⑥ 回顾 ═════════ -->
+  <div class="col">
+    <div class="screen">
+      <div class="grain"></div>
+      <div class="pad">
+
+        <div class="topbar">
+          <span class="where"><u>‹</u>星球学院</span>
+        </div>
+
+        <div class="revhead">
+          <h1>回顾</h1>
+          <span>第 1 章 · 42 回合</span>
+        </div>
+
+        <p class="summary">开学第一天，你在走廊里碰到砂金。他问你为什么迟到，你没有正面回答。晚自习还没开始，丹恒在楼梯口看了你一眼。</p>
+
+        <div class="revscroll">
+          <div class="toc">
+            <div class="tochead"><b>章节</b><span>2 章</span></div>
+            <div class="trow"><b>序章 · 你进入这个世界的由头</b><i class="lead"></i><em>8 回合</em></div>
+            <div class="trow"><b>第一章 · 开学日</b><i class="lead"></i><em>进行中</em></div>
+          </div>
+
+          <div class="toc">
+            <div class="tochead"><b>人物记得什么</b><span>按人分开</span></div>
+            <div class="crow mem">
+              <span class="face"><img src="https://trae-api-cn.mchost.guru/api/ide/v1/tool_text_to_image?prompt=editorial%20portrait%20of%20a%20young%20man%20with%20short%20blond%20hair%2C%20pale%20violet%20eyes%2C%20faint%20smile%2C%20dark%20navy%20school%20blazer%2C%20soft%20window%20light%2C%20muted%20warm%20film%20tones%2C%20painterly%2C%20head%20and%20shoulders&image_size=square" alt="" onerror="this.remove()" />砂</span>
+              <div class="txt">
+                <h4>砂金</h4>
+                <p>知道你迟到了，也知道你在找三年级教室</p>
+              </div>
+            </div>
+            <div class="crow mem">
+              <span class="face"><img src="https://trae-api-cn.mchost.guru/api/ide/v1/tool_text_to_image?prompt=editorial%20portrait%20of%20a%20young%20man%20with%20long%20dark%20hair%2C%20calm%20quiet%20expression%2C%20dark%20green%20jacket%2C%20cool%20soft%20light%2C%20muted%20film%20tones%2C%20painterly%2C%20head%20and%20shoulders&image_size=square" alt="" onerror="this.remove()" />丹</span>
+              <div class="txt">
+                <h4>丹恒</h4>
+                <p>只在楼梯口见过你一次，没说过话</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="toc">
+            <div class="tochead"><b>还欠着的</b><span>2 条</span></div>
+            <div class="trow"><b>周三的晚自习</b><i class="lead"></i><em>还没有去</em></div>
+            <div class="trow"><b>学生会长的邀请</b><i class="lead"></i><em>没有回</em></div>
+          </div>
+        </div>
+
+        <footer class="colophon">
+          <div class="rule"></div>
+          <div class="act">
+            <span class="aside">只读<em>改不了剧情</em></span>
+            <span class="go">去开演<u>→</u></span>
+          </div>
+        </footer>
+
+      </div>
+    </div>
+    <div class="cap">
+      <b>⑥ 回顾</b>
+      <span>从开演页章节行右侧的「回顾」进来。<br/>一段摘要、按章翻、每个人各自记得什么、还欠着的事。</span>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>文游 · 预览</title>
+<!-- 与站内同一支字体：京华老宋体（分片按 unicode-range 自动取） -->
+<link rel="stylesheet" href="../public/fonts/kinghwa-oldsong.css" />
+<style>
+  :root {
+    --page: #F1EEE7;
+    --paper: #FCFAF6;
+    --card: #FFFFFF;
+    --ink: #1F1C1A;
+    --ink-2: #57504A;
+    --ink-3: #9A9089;
+    --ink-4: #C2B9B0;
+    --line: rgba(31, 28, 26, .10);
+    --line-soft: rgba(31, 28, 26, .055);
+    --blue: #3F5E8C;
+    --blue-wash: rgba(63, 94, 140, .07);
+    --pink: #C4667C;
+    --pink-wash: rgba(196, 102, 124, .09);
+    --gold: #9A7B3F;
+    --serif: "KingHwa OldSong", "Noto Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(520px 320px at 18% 0%, rgba(196,102,124,.055), transparent 70%),
+      radial-gradient(520px 320px at 84% 12%, rgba(63,94,140,.05), transparent 70%),
+      var(--page);
+    color: var(--ink);
+    font-family: var(--serif);
+    padding: 44px 28px 60px;
+  }
+  .head { max-width: 1280px; margin: 0 auto 34px; }
+  .head h1 { font-size: 22px; font-weight: 500; letter-spacing: .18em; }
+  .head p { margin-top: 10px; font-size: 13px; line-height: 1.9; color: var(--ink-3); letter-spacing: .04em; }
+  .stage { display: flex; gap: 34px; justify-content: center; align-items: flex-start; flex-wrap: wrap; max-width: 1340px; margin: 0 auto; }
+  .col { width: 390px; }
+  .cap { margin-top: 16px; text-align: center; }
+  .cap b { display: block; font-size: 13px; font-weight: 500; letter-spacing: .16em; color: var(--ink-2); }
+  .cap span { display: block; margin-top: 6px; font-size: 11px; line-height: 1.7; color: var(--ink-3); letter-spacing: .03em; }
+
+  /* ── 手机壳 ── */
+  .phone {
+    position: relative; width: 390px; height: 844px; border-radius: 46px;
+    background: var(--paper);
+    border: 1px solid rgba(31, 28, 26, .12);
+    box-shadow: 0 26px 50px -28px rgba(31,28,26,.34), 0 2px 6px rgba(31,28,26,.05);
+    overflow: hidden;
+  }
+  .status { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px 0 30px; font-size: 11px; letter-spacing: .1em; color: var(--ink-3); }
+  .status .dots { display: flex; gap: 4px; align-items: center; }
+  .status i { display: block; width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: .7; }
+
+  .screen { position: absolute; inset: 44px 0 0; display: flex; flex-direction: column; }
+
+  /* ── 通用条 ── */
+  .bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px 12px; }
+  .bar .ico { width: 26px; height: 26px; display: grid; place-items: center; color: var(--ink-3); flex: none; }
+  .bar .t { flex: 1; min-width: 0; }
+  .bar .t b { display: block; font-size: 14px; font-weight: 500; letter-spacing: .12em; }
+  .bar .t span { display: block; margin-top: 4px; font-size: 9.5px; letter-spacing: .26em; color: var(--ink-3); text-transform: uppercase; }
+  .rule { height: 1px; background: var(--line); }
+
+  /* ── ① 我的世界（封面即卡） ── */
+  .list { padding: 2px 18px 0; overflow: hidden; }
+  .wcard { position: relative; margin-bottom: 18px; }
+  .cover {
+    position: relative; height: 196px; overflow: hidden; background: #EFEAE1;
+    border: 1px solid rgba(31,28,26,.12);
+    box-shadow: 0 12px 24px -20px rgba(31,28,26,.55);
+  }
+  /* 默认封面：素纸 + 一角淡晕 + 一枚细线菱形。换过图之后整层被盖掉。 */
+  .defcover {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.60), rgba(255,255,255,0) 55%),
+      radial-gradient(115% 90% at 16% 4%, var(--tint, rgba(196,102,124,.20)), transparent 65%),
+      linear-gradient(160deg, #F8F4ED, #EAE4D9);
+  }
+  .defcover::before { content: ""; position: absolute; inset: 10px; border: 1px solid rgba(31,28,26,.08); }
+  .defcover::after {
+    content: ""; position: absolute; left: 50%; top: 34%; width: 26px; height: 26px;
+    transform: translate(-50%,-50%) rotate(45deg); border: 1px solid rgba(31,28,26,.15);
+  }
+  /* 名字压在下沿的一层纸上：默认封面浅、换成照片也不会糊 */
+  .shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(252,250,246,0) 44%, rgba(252,250,246,.80) 72%, rgba(252,250,246,.96) 100%);
+  }
+  .tools { position: absolute; top: 9px; right: 9px; z-index: 3; display: flex; gap: 6px; }
+  .tools button {
+    font-family: var(--serif); font-size: 8.5px; letter-spacing: .1em; cursor: pointer;
+    padding: 4px 8px; border: 1px solid rgba(31,28,26,.14);
+    background: rgba(252,250,246,.9); color: var(--ink-2);
+  }
+  .winfo { position: absolute; left: 16px; right: 16px; bottom: 13px; z-index: 2; }
+  .winfo .src {
+    display: inline-block; font-size: 8px; letter-spacing: .12em; color: var(--ink-3);
+    padding-bottom: 2px; border-bottom: 1px solid rgba(31,28,26,.12);
+  }
+  .winfo h3 { margin-top: 7px; font-size: 21px; font-weight: 500; letter-spacing: .18em; color: var(--ink); }
+  .wline {
+    margin-top: 6px; display: flex; align-items: center; gap: 10px;
+    font-size: 9.5px; letter-spacing: .06em; color: var(--ink-3);
+  }
+  .wline i { font-style: normal; color: var(--ink-4); margin: 0 4px; }
+  .faces { margin-left: auto; display: flex; }
+  .faces b {
+    width: 20px; height: 20px; border-radius: 50%; margin-left: -5px;
+    display: grid; place-items: center; font-size: 8.5px; font-weight: 400;
+    background: #F4F1EC; border: 1px solid rgba(31,28,26,.12); color: var(--ink-2);
+  }
+  .faces b:first-child { margin-left: 0; }
+
+  /* 每个世界一建出来就有默认封面，所以列表里没有「没有封面」的卡。 */
+
+  .newbtn {
+    margin-top: 2px; border: 1px dashed var(--line); padding: 15px; text-align: center;
+    font-size: 11px; letter-spacing: .2em; color: var(--ink-3); background: rgba(255,255,255,.55);
+  }
+
+  /* ── ② 开演 ── */
+  .story { flex: 1; padding: 6px 22px 0; overflow: hidden; }
+  .block { margin-bottom: 19px; }
+  .narration { font-size: 13px; line-height: 2; color: var(--ink-2); letter-spacing: .03em; }
+  .action { font-size: 13px; line-height: 2; color: var(--ink-3); letter-spacing: .03em; }
+  .action::before { content: ""; display: inline-block; width: 10px; height: 1px; background: var(--line); vertical-align: middle; margin-right: 8px; }
+  .say .who {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 9.5px; letter-spacing: .24em; color: var(--blue); text-transform: uppercase; margin-bottom: 6px;
+  }
+  .say .who svg { opacity: .8; }
+  .say p { font-size: 14.5px; line-height: 1.95; letter-spacing: .04em; color: var(--ink); }
+  .say p::before { content: "「"; color: var(--ink-4); }
+  .say p::after { content: "」"; color: var(--ink-4); }
+
+  .composer { padding: 0 16px 18px; }
+  .chips { display: flex; flex-direction: column; gap: 7px; margin-bottom: 11px; }
+  .chip {
+    display: flex; align-items: center; gap: 9px;
+    border: 1px solid var(--line); border-radius: 3px; padding: 9px 12px;
+    background: var(--card);
+    font-size: 12px; color: var(--ink-2); letter-spacing: .03em;
+  }
+  .chip em {
+    font-style: normal; font-family: var(--mono); font-size: 8.5px; letter-spacing: .06em;
+    color: var(--ink-3); padding: 1px 5px; border: 1px solid var(--line-soft); border-radius: 2px; flex: none;
+  }
+  .inputbar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: 11px 13px;
+  }
+  .inputbar .ph { flex: 1; font-size: 12.5px; color: var(--ink-4); letter-spacing: .04em; }
+  .inputbar .send {
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    background: var(--pink-wash); color: var(--pink); display: grid; place-items: center;
+  }
+  .hint { margin-top: 9px; text-align: center; font-size: 9px; letter-spacing: .16em; color: var(--ink-4); }
+
+  /* ── ③ 建角色 ── */
+  .ask { padding: 8px 22px 0; }
+  .q { font-size: 13.5px; line-height: 1.95; color: var(--ink); letter-spacing: .04em; }
+  .q::before { content: "料"; display: block; font-family: var(--mono); font-size: 8.5px; letter-spacing: .3em; color: var(--ink-3); margin-bottom: 8px; }
+  /* 三个进料口：贴文本 / 让它去查 / 让它起个头。都只是喂料，不是必答题。 */
+  .feed { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; }
+  .fb {
+    font-size: 10.5px; letter-spacing: .04em; padding: 6px 9px; cursor: pointer;
+    border: 1px dashed var(--line); border-radius: 3px; color: var(--ink-2);
+    background: rgba(255,255,255,.55);
+  }
+  .fb.on { border-style: solid; border-color: rgba(63,94,140,.32); color: var(--blue); background: var(--blue-wash); }
+
+  .draft { margin: 20px 16px 0; border: 1px solid var(--line); border-radius: 4px; padding: 16px; background: var(--card); box-shadow: 0 1px 2px rgba(31,28,26,.035); }
+  .draft .tag { display: flex; align-items: center; justify-content: space-between; }
+  .draft .tag b { font-size: 9px; letter-spacing: .24em; color: var(--ink-3); font-weight: 400; }
+  .draft h4 { margin-top: 11px; font-size: 17px; font-weight: 500; letter-spacing: .12em; }
+  .row { margin-top: 9px; display: flex; gap: 8px; font-size: 11.5px; line-height: 1.85; color: var(--ink-2); }
+  .row span { flex: none; width: 34px; color: var(--ink-3); font-size: 10px; letter-spacing: .06em; padding-top: 1px; }
+  /* 卡上留一个「加一格」：技能值、攻击力、禁忌、持有物都从这儿长出来，格子不预设。 */
+  .addf {
+    margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--line-soft);
+    font-size: 10.5px; letter-spacing: .06em; color: var(--ink-3); cursor: pointer;
+  }
+  /* 玩家口头补的一句，落在卡下面，说明它改了什么 */
+  .sayline {
+    margin: 12px 16px 0; padding: 10px 12px;
+    border-left: 2px solid rgba(63,94,140,.28); background: rgba(255,255,255,.55);
+    font-size: 11.5px; line-height: 1.8; color: var(--ink-2); letter-spacing: .03em;
+  }
+  .sayline b { font-weight: 400; color: var(--blue); margin-right: 6px; }
+  .sayline em { display: block; margin-top: 3px; font-style: normal; font-size: 10px; color: var(--ink-3); letter-spacing: .06em; }
+
+  /* ── 新建世界（固定几格 + 小助手入口） ── */
+  .step {
+    font-family: var(--mono); font-size: 8.5px; letter-spacing: .2em; color: var(--ink-3);
+    padding-bottom: 9px; margin-bottom: 4px; border-bottom: 1px solid var(--line-soft);
+  }
+  .field { margin-top: 14px; }
+  .field > label { display: block; font-size: 10px; letter-spacing: .1em; color: var(--ink-3); margin-bottom: 7px; }
+  .field > label b { font-weight: 400; font-size: 8px; letter-spacing: .1em; color: var(--pink); margin-left: 5px; }
+  .field > label em { font-style: normal; font-size: 8px; letter-spacing: .1em; color: var(--ink-4); margin-left: 5px; }
+  .inp {
+    border: 1px solid var(--line); border-radius: 3px; background: var(--card);
+    padding: 10px 11px; font-size: 12.5px; letter-spacing: .03em; color: var(--ink);
+  }
+  .inp.ph { color: var(--ink-4); font-size: 11.5px; }
+  .tip { margin-top: 6px; font-size: 9px; line-height: 1.75; color: var(--ink-4); letter-spacing: .03em; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; background: var(--card); }
+  .seg span { flex: 1; text-align: center; padding: 9px 0; font-size: 11.5px; letter-spacing: .06em; color: var(--ink-3); }
+  .seg span.on { background: var(--blue-wash); color: var(--ink); }
+  .switchrow { display: flex; align-items: center; gap: 12px; margin-top: 9px; }
+  .switchrow .tip { flex: 1; margin: 0; }
+  .sw { width: 32px; height: 18px; border-radius: 9px; background: rgba(31,28,26,.13); position: relative; flex: none; }
+  .sw::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(31,28,26,.2);
+  }
+  .sw.on { background: rgba(63,94,140,.6); }
+  .sw.on::after { left: 17px; }
+
+  .assist {
+    margin: 15px 16px 0; padding: 11px 12px;
+    border: 1px dashed rgba(63,94,140,.32); background: rgba(63,94,140,.045);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .assist b { display: block; font-size: 11px; font-weight: 500; letter-spacing: .04em; color: var(--ink); }
+  .assist em { display: block; margin-top: 4px; font-style: normal; font-size: 9px; line-height: 1.7; color: var(--ink-3); }
+  .assist u { flex: none; font-size: 10px; letter-spacing: .06em; color: var(--blue); text-decoration: none; }
+
+  .foot { padding: 0 16px 20px; }
+  .next {
+    display: block; text-align: center; padding: 13px; border-radius: 3px;
+    background: var(--ink); color: #F8F4ED; font-size: 12px; letter-spacing: .12em;
+  }
+  .alt { display: block; margin-top: 9px; text-align: center; font-size: 10px; letter-spacing: .1em; color: var(--ink-3); }
+
+  /* ── 世界小助手（边聊边记，不先出整页） ── */
+  .mkdoc {
+    font-family: var(--serif); font-size: 9.5px; letter-spacing: .12em; cursor: pointer;
+    padding: 5px 9px; border: 1px solid rgba(154,123,63,.4); color: var(--gold);
+    background: rgba(154,123,63,.06);
+  }
+  .chat { flex: 1; padding: 2px 18px 0; overflow: hidden; }
+  .ai { font-size: 12px; line-height: 1.9; color: var(--ink-2); letter-spacing: .03em; }
+  .ai .who {
+    display: block; font-family: var(--mono); font-size: 8px; letter-spacing: .24em;
+    color: var(--ink-3); margin-bottom: 5px;
+  }
+  .me {
+    margin: 12px 0 0 auto; max-width: 86%; padding: 10px 12px;
+    border: 1px solid var(--line); background: var(--card);
+    font-size: 12px; line-height: 1.9; color: var(--ink); letter-spacing: .03em;
+  }
+  .cap-list {
+    margin: 12px 0; padding: 10px 12px;
+    border-left: 2px solid rgba(154,123,63,.4); background: rgba(255,255,255,.6);
+  }
+  .cap-list div { font-size: 9.5px; line-height: 1.95; color: var(--ink-2); letter-spacing: .03em; }
+  .cap-list i { font-style: normal; font-size: 8px; letter-spacing: .1em; color: var(--gold); margin-right: 7px; }
+  .cap-list .no i { color: var(--pink); }
+  .quick { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .quick span {
+    font-size: 10px; letter-spacing: .03em; padding: 6px 9px;
+    border: 1px solid var(--line); border-radius: 3px; color: var(--ink-2); background: rgba(255,255,255,.7);
+  }
+
+  /* ── 世界设定 · 定稿（折叠目录：先给骨架，点开才展开长文） ── */
+  .doc { flex: 1; padding: 2px 18px 0; overflow: hidden; }
+  .doc .h {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  }
+  .doc .h b { font-size: 15px; font-weight: 500; letter-spacing: .14em; }
+  .doc .h u { font-family: var(--mono); font-size: 8.5px; letter-spacing: .12em; color: var(--gold); text-decoration: none; }
+  /* 一句话简介：不进目录，压在标题下，永远看得见 */
+  .lead { padding: 11px 0 12px; border-bottom: 1px solid var(--line-soft); }
+  .lead p { font-size: 12px; line-height: 1.9; color: var(--ink-2); letter-spacing: .03em; }
+  .lead span {
+    display: block; margin-top: 6px;
+    font-family: var(--mono); font-size: 8px; letter-spacing: .12em; color: var(--ink-4);
+  }
+  .trow {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11.5px 0; border-bottom: 1px solid var(--line-soft);
+  }
+  /* 展开的那一行改成块，标题与条数排一行，正文落下面 */
+  .trow.open { display: block; }
+  .trow.open .th { display: flex; align-items: center; gap: 10px; }
+  .trow b { font-size: 11.5px; font-weight: 500; letter-spacing: .1em; color: var(--ink-2); }
+  .trow em { font-style: normal; font-size: 9px; letter-spacing: .04em; color: var(--ink-4); }
+  .trow u { margin-left: auto; font-size: 11px; line-height: 1; color: var(--ink-4); text-decoration: none; }
+  .trow .tb { margin-top: 8px; }
+  .trow .tb div { font-size: 10px; line-height: 2; color: var(--ink-3); letter-spacing: .02em; }
+  .trow .tb div::before { content: "·"; margin-right: 7px; color: var(--ink-4); }
+  /* 条目尾上那枚小字：查到的 / 你定的 / 它补的 */
+  .trow .tb b { font-weight: 400; font-size: 8px; letter-spacing: .06em; color: var(--ink-4); margin-left: 6px; }
+  /* 卡列表末尾那一行新建：不要项目符号 */
+  .trow .tb .addf::before { content: none; }
+  .trow .tb .addf { margin-top: 6px; padding-top: 8px; font-size: 10px; line-height: 1.9; color: var(--blue); letter-spacing: .06em; }
+
+  /* ── 世界设定页头：世界名 / 一句话 / 来源条 ── */
+  .wt { display: flex; align-items: baseline; justify-content: space-between; }
+  .wt h4 { font-size: 19px; font-weight: 500; letter-spacing: .16em; }
+  .wt span { font-family: var(--mono); font-size: 8px; letter-spacing: .1em; color: var(--ink-4); }
+  .oneline { margin-top: 7px; font-size: 11.5px; line-height: 1.85; color: var(--ink-2); letter-spacing: .03em; }
+  .srcbar {
+    margin: 11px 0 3px; padding: 8px 0;
+    border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; gap: 7px;
+    font-size: 9px; letter-spacing: .04em; color: var(--ink-3);
+  }
+  .srcbar i { width: 1px; height: 9px; background: var(--line); }
+  .srcbar u { margin-left: auto; text-decoration: none; font-size: 9px; color: var(--blue); }
+
+  /* 空着的块：不写「暂无」，写「空 · 点开写」——空不是错，是还没写 */
+  .trow.empty b { color: var(--ink-4); }
+  .trow.empty em { color: var(--ink-4); }
+
+  /* 联网：开着它自己跑，跑完在页面上挂一条待办。不跳页、不弹窗、不打断你。 */
+  .netbar {
+    margin-top: 10px; padding: 10px 11px;
+    border: 1px dashed rgba(63,94,140,.32); background: rgba(63,94,140,.045);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .netbar b { display: block; font-size: 10.5px; font-weight: 500; letter-spacing: .04em; color: var(--ink); }
+  .netbar em { display: block; margin-top: 3px; font-style: normal; font-size: 9px; letter-spacing: .03em; color: var(--ink-3); }
+  .netbar u { margin-left: auto; flex: none; font-size: 10px; letter-spacing: .04em; color: var(--blue); text-decoration: none; }
+
+  /* ── 弹层：还是同一页，只是把另一件事盖上来看 ── */
+  .dim { position: absolute; inset: 0; background: rgba(31,28,26,.16); z-index: 8; }
+  .sheet { position: absolute; z-index: 9; background: var(--paper); }
+  .sheet.b { left: 0; right: 0; bottom: 0; border-radius: 15px 15px 0 0; box-shadow: 0 -16px 40px -20px rgba(31,28,26,.42); }
+  .sheet.r {
+    top: 0; right: 0; bottom: 0; width: 84%;
+    border-radius: 15px 0 0 15px; box-shadow: -16px 0 40px -20px rgba(31,28,26,.45);
+    display: flex; flex-direction: column;
+  }
+  .hbar { width: 34px; height: 3px; border-radius: 2px; background: var(--line); margin: 9px auto 0; }
+  .shead { display: flex; align-items: baseline; justify-content: space-between; padding: 15px 18px 10px; }
+  .shead b { font-size: 13px; font-weight: 500; letter-spacing: .12em; }
+  .shead span { font-family: var(--mono); font-size: 8px; letter-spacing: .12em; color: var(--ink-4); }
+  .sheet .field { margin-top: 11px; }
+  /* 加一块：种族、规则、任务、穿着……都是这个世界长出来的，不是每本都有 */
+  .tadd {
+    margin-top: 13px; padding: 11px; text-align: center;
+    border: 1px dashed var(--line); background: rgba(255,255,255,.55);
+    font-size: 10px; letter-spacing: .1em; color: var(--ink-3);
+  }
+  /* 新建世界页里的同款目录：行更矮，好跟上面几格挤在一屏 */
+  .trow.sm { padding: 9px 0; }
+  .tadd.sm { margin-top: 9px; padding: 9px; }
+  /* 清单与坑位是机制，不是世界内容，不进目录，挂在一行小字上 */
+  .meta {
+    margin-top: 11px; padding-top: 10px; border-top: 1px dashed var(--line);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 9px; letter-spacing: .04em; color: var(--ink-4);
+  }
+  .meta b { font-weight: 400; color: var(--ink-3); }
+  .meta i { width: 1px; height: 9px; background: var(--line); }
+  .meta u { margin-left: auto; text-decoration: none; font-size: 9.5px; color: var(--blue); }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>文游 · 预览</h1>
+  <p>六屏：我的世界 / 世界设定（空） / 世界设定（补过） / 世界小助手 / 新建角色 / 开演。只有一格必填：剧本名字。其余全是一页随时能回来写的纸。</p>
+</div>
+
+<div class="stage">
+
+  <!-- ① 我的世界 -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+      <div class="screen">
+        <div class="bar">
+          <div class="ico">≡</div>
+          <div class="t"><b>我的世界</b><span>WORLDS</span></div>
+          <div class="ico">＋</div>
+        </div>
+        <div class="rule" style="margin:0 20px 18px"></div>
+
+        <div class="list">
+          <article class="wcard">
+            <div class="cover">
+              <div class="defcover" style="--tint:rgba(150,110,180,.22)"></div>
+              <div class="shade"></div>
+              <div class="tools"><button type="button">换封面</button><button type="button">⋯</button></div>
+              <div class="winfo">
+                <span class="src">原著 · 崩坏：星穹铁道</span>
+                <h3>星球学院</h3>
+                <div class="wline">
+                  <span>第一章 · 开学日<i>·</i>42 回合<i>·</i>昨天 20:14</span>
+                  <span class="faces"><b>砂</b><b>丹</b><b>真</b></span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="wcard">
+            <div class="cover">
+              <div class="defcover" style="--tint:rgba(63,94,140,.20)"></div>
+              <div class="shade"></div>
+              <div class="tools"><button type="button">换封面</button><button type="button">⋯</button></div>
+              <div class="winfo">
+                <span class="src">原创 · 无原著</span>
+                <h3>雾港来信</h3>
+                <div class="wline">
+                  <span>序章 · 到港<i>·</i>7 回合<i>·</i>09/08 22:41</span>
+                  <span class="faces"><b>沈</b></span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="wcard">
+            <div class="cover">
+              <div class="defcover" style="--tint:rgba(154,123,63,.20)"></div>
+              <div class="shade"></div>
+              <div class="tools"><button type="button">换封面</button><button type="button">⋯</button></div>
+              <div class="winfo">
+                <span class="src">原创 · 无原著</span>
+                <h3>提瓦特学园</h3>
+                <div class="wline"><span>还没有开始 · 0 回合</span></div>
+              </div>
+            </div>
+          </article>
+
+          <div class="newbtn">＋ 开 一 个 新 世 界</div>
+        </div>
+
+        <!-- 点「开一个新世界」只升一格弹层：两格填完就能进去 -->
+        <div class="dim"></div>
+        <div class="sheet b">
+          <div class="hbar"></div>
+          <div class="shead"><b>开一个新世界</b><span>NEW WORLD</span></div>
+          <div style="padding:0 18px">
+            <div class="field" style="margin-top:2px">
+              <label>剧本名字<b>必填</b></label>
+              <div class="inp">星穹学院</div>
+            </div>
+            <div class="field">
+              <label>是否有原著作品</label>
+              <div class="seg"><span class="on">有原著</span><span>原创</span></div>
+            </div>
+            <div class="field">
+              <label>作品名</label>
+              <div class="inp">崩坏：星穹铁道</div>
+            </div>
+            <div class="switchrow">
+              <div class="sw on"></div>
+              <div class="tip">联网查询原著 · 默认开启</div>
+            </div>
+            <div class="foot" style="padding:16px 0 18px">
+              <div class="next">开始联网查询</div>
+              <div class="alt" style="color:var(--ink-4)">手动填写</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">
+      <b>① 我的世界</b>
+      <span>开新世界只填两格：名字、有没有原著<br/>联网开着点「联网查询」，关掉就是「手动填写」</span>
+    </div>
+  </div>
+
+  <!-- ② 世界设定：刚建出来，就是一页空纸 -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+      <div class="screen">
+        <div class="bar">
+          <div class="ico">‹</div>
+          <div class="t"><b>世界设定</b><span>WORLD SETTING</span></div>
+          <button class="mkdoc" type="button">跟它聊</button>
+        </div>
+        <div class="rule" style="margin:0 20px 12px"></div>
+
+        <div class="doc">
+          <div class="wt">
+            <h4>星穹学院</h4>
+          </div>
+          <p class="oneline" style="color:var(--ink-4)">写一句这个世界的话。</p>
+
+          <div class="srcbar">
+            <span>原著 · 崩坏：星穹铁道</span><i></i><span>联网中…</span>
+            <u>停</u>
+          </div>
+
+          <div class="trow empty"><b>世界总览</b><em>空 · 点开写</em><u>›</u></div>
+          <div class="trow empty"><b>地点</b><em>空 · 点开写</em><u>›</u></div>
+          <div class="trow empty"><b>人物</b><em>空 · 点开建卡</em><u>›</u></div>
+          <div class="trow empty"><b>文风</b><em>空 · 点开写</em><u>›</u></div>
+
+          <div class="tadd">＋ 加一块</div>
+
+          <div class="meta">
+            <span>已确认 <b>0</b></span><i></i><span>坑位 <b>0</b></span>
+            <u>看清单 ›</u>
+          </div>
+        </div>
+
+        <div class="foot" style="margin-top:auto">
+          <div class="next">去建角色</div>
+          <div class="alt">AI 小助手</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">
+      <b>② 世界设定 · 刚建</b>
+      <span>一页纸，四块空着，点哪都能写<br/>没有必填、没有下一步</span>
+    </div>
+  </div>
+
+  <!-- ③ 世界设定：补过一阵，还是同一页，只是块里有了条目 -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+      <div class="screen">
+        <div class="bar">
+          <div class="ico">‹</div>
+          <div class="t"><b>世界设定</b><span>WORLD SETTING</span></div>
+          <button class="mkdoc" type="button">跟它聊</button>
+        </div>
+        <div class="rule" style="margin:0 20px 12px"></div>
+
+        <div class="doc">
+          <div class="wt">
+            <h4>星穹学院</h4>
+            <span>第 3 稿</span>
+          </div>
+          <p class="oneline">命途还在，但没有战争的一所大学。你是刚报到的大一新生。</p>
+
+          <div class="srcbar">
+            <span>原著 · 崩坏：星穹铁道</span><i></i><span>联网 · 开</span>
+            <u>改</u>
+          </div>
+
+          <div class="netbar">
+            <div>
+              <b>联网查回 26 条</b>
+              <em>已写进 8 条</em>
+            </div>
+            <u>过一眼 ›</u>
+          </div>
+
+          <div class="trow sm" style="margin-top:2px"><b>世界总览</b><em>6 条</em><u>›</u></div>
+          <div class="trow sm"><b>地点</b><em>4 个</em><u>›</u></div>
+
+          <div class="trow open">
+            <div class="th"><b>人物</b><em>12 张</em><u>⌄</u></div>
+            <div class="tb">
+              <div>砂金 · 学生会副会长<b>查到的</b></div>
+              <div>丹恒 · 二年级<b>查到的</b></div>
+              <div>真 · 原创<b>你定的</b></div>
+              <div class="addf">＋ 新建一张</div>
+            </div>
+          </div>
+          <div class="trow sm"><b>文风</b><em>3 条</em><u>›</u></div>
+          <div class="trow sm"><b>种族与命途</b><em>它补的 · 4 族</em><u>›</u></div>
+          <div class="trow sm"><b>学院规则</b><em>它补的 · 5 条</em><u>›</u></div>
+
+          <div class="tadd sm">＋ 加一块</div>
+
+          <div class="meta">
+            <span>已确认 <b>9 / 14</b></span><i></i><span>坑位 <b>0</b></span>
+            <u>看清单 ›</u>
+          </div>
+        </div>
+
+        <div class="foot" style="margin-top:auto">
+          <div class="next">就这样，去建角色</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">
+      <b>③ 世界设定 · 补过一阵</b>
+      <span>跟 ② 是同一页，只是块里有了东西<br/>人物块展开就是角色卡列表，末尾新建一张</span>
+    </div>
+  </div>
+
+  <!-- ④ 小助手：从右边拉出来，压在世界设定页上，往左边那一页里加 -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+      <div class="screen">
+        <div class="bar">
+          <div class="ico">‹</div>
+          <div class="t"><b>世界设定</b><span>WORLD SETTING</span></div>
+          <button class="mkdoc" type="button">跟它聊</button>
+        </div>
+        <div class="rule" style="margin:0 20px 12px"></div>
+
+        <div class="doc">
+          <div class="wt"><h4>星穹学院</h4><span>第 3 稿</span></div>
+          <p class="oneline">命途还在，但没有战争的一所大学。</p>
+          <div class="srcbar"><span>原著 · 崩坏：星穹铁道</span><i></i><span>联网 · 开</span><u>改</u></div>
+          <div class="trow"><b>世界总览</b><em>6 条</em><u>›</u></div>
+          <div class="trow"><b>地点</b><em>4 个</em><u>›</u></div>
+          <div class="trow"><b>人物</b><em>12 张角色卡</em><u>›</u></div>
+          <div class="trow"><b>文风</b><em>3 条</em><u>›</u></div>
+        </div>
+
+        <div class="dim"></div>
+        <div class="sheet r">
+          <div class="shead"><b>世界小助手</b><span>WORLD ASSISTANT</span></div>
+          <div class="rule" style="margin:0 16px 10px"></div>
+
+          <div class="chat" style="padding:0 16px">
+            <div class="me">查一下原著的基础设定。我要做平行时空，基础设定留着。</div>
+
+            <div class="ai"><span class="who">它</span>查了 26 条。跟你设定不打架的直接写，打架的先压着。</div>
+
+            <div class="cap-list">
+              <div><i>直接写</i>12 条 · 星神、命途、公司…</div>
+              <div><i>改一下</i>6 条 · 列车组 → 学院同好会</div>
+              <div class="no"><i>不写</i>4 条 · 开拓者主线，跟「不要战争」冲突</div>
+            </div>
+
+            <div class="ai"><span class="who">它</span>写进去的条尾标了「查到的」。不写的先压着，改主意随时说。</div>
+
+            <div class="quick">
+              <span>都留下</span>
+              <span>星神也删</span>
+              <span>你定</span>
+            </div>
+          </div>
+
+          <div class="composer" style="margin-top:auto;padding:0 14px 18px">
+            <div class="inputbar">
+              <span class="ph">接着说…</span>
+              <span class="send">↗</span>
+            </div>
+            <div class="hint">只往左边那页里加</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">
+      <b>④ 世界小助手</b>
+      <span>从右边拉开，压在世界设定页上<br/>聊着就往那一页里落条目</span>
+    </div>
+  </div>
+
+  <!-- ⑤ 新建角色 -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+      <div class="screen">
+        <div class="bar">
+          <div class="ico">‹</div>
+          <div class="t"><b>新建角色</b><span>BY CONVERSATION</span></div>
+          <div class="ico">⋯</div>
+        </div>
+        <div class="rule" style="margin:0 20px 14px"></div>
+
+        <div class="ask">
+          <p class="q">贴一段原文，或者说个人名。</p>
+          <div class="feed">
+            <span class="fb on">贴一段原文</span>
+            <span class="fb">去原著里查</span>
+            <span class="fb">你来起一个</span>
+          </div>
+        </div>
+
+        <div class="draft">
+          <div class="tag"><b>角色卡 · 草稿 03</b></div>
+          <h4>砂金</h4>
+          <div class="row"><span>身份</span>学院学生会副会长，二年级</div>
+          <div class="row"><span>说话</span>爱用问句，句尾总带一点笑</div>
+          <div class="row"><span>旧伤</span>左手腕有旧伤，自己不太提</div>
+          <div class="row"><span>数值</span>剑术 7 · 步法 6 · 体力 8</div>
+          <div class="addf">＋ 加一格</div>
+        </div>
+
+        <div class="sayline">
+          <b>你</b>他左手有旧伤，平时不太提，被问到会绕开。
+          <em>已补进卡里。</em>
+        </div>
+
+        <div class="composer" style="margin-top:auto">
+          <div class="inputbar">
+            <span class="ph">接着说…</span>
+            <span class="send">↗</span>
+          </div>
+          <div class="foot" style="padding:0;margin-top:10px">
+            <div class="next">完成</div>
+            <div class="alt">完成 · 再建一个</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">
+      <b>⑤ 新建角色</b>
+      <span>贴料、开聊，它先写一版你再改<br/>完成就回人物列表，可接着建</span>
+    </div>
+  </div>
+
+  <!-- ⑥ 开演 -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+      <div class="screen">
+        <div class="bar">
+          <div class="ico">‹</div>
+          <div class="t"><b>星球学院</b><span>第一章 · 开学日</span></div>
+          <div class="ico">↺</div>
+        </div>
+        <div class="rule" style="margin:0 20px 14px"></div>
+
+        <div class="story">
+          <div class="block">
+            <p class="narration">九月的风把操场边的梧桐吹得沙沙响。</p>
+          </div>
+
+          <div class="block">
+            <p class="action">你把书包带子往上提了提，站在公告栏前，名字还没找到。</p>
+          </div>
+
+          <div class="block say">
+            <div class="who">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+              砂金
+            </div>
+            <p>找你的名字？</p>
+          </div>
+
+          <div class="block">
+            <p class="action">有人从背后凑过来，指关节在玻璃上敲了两下。</p>
+          </div>
+
+          <div class="block say">
+            <div class="who">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+              砂金
+            </div>
+            <p>第三行，最后一个。字写得挺好看。</p>
+          </div>
+
+          <div class="block">
+            <p class="narration">他退开半步，等你回头。</p>
+          </div>
+        </div>
+
+        <div class="composer">
+          <div class="chips">
+            <div class="chip"><em>软</em>「你怎么知道我在找名字？」</div>
+            <div class="chip"><em>硬</em>「看得这么仔细，你查过我？」</div>
+            <div class="chip"><em>岔</em>（不接话，往后退半步）</div>
+          </div>
+          <div class="inputbar">
+            <span class="ph">写你想说的…</span>
+            <span class="send">↗</span>
+          </div>
+          <div class="hint">点选项进输入框</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">
+      <b>⑥ 开演</b>
+      <span>旁白／动作／台词分段，只有台词会念<br/>三个选项给台阶，不替你决定</span>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
