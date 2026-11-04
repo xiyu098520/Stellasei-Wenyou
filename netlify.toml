@@ -15,3 +15,17 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+# Next 默认给页面发 max-age=0, must-revalidate：每次跳页都要回源到美国机房，
+# 国内点一下就要等 0.5–1 秒。这里让 Netlify 边缘长期缓存（每次发版会自动清），
+# 浏览器仍然每次都问，所以不会看到旧版本。
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, s-maxage=31536000"
+
+# 带哈希的构建产物内容永远不变，让浏览器也长期缓存
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
