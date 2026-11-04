@@ -11,21 +11,21 @@ export default function WorldTabs({
 }) {
   return (
     <div className="topbar">
-      <Link className="where" href="/">
+      <Link className="where" href="/" prefetch={true}>
         <u>‹</u>
         {title}
       </Link>
       <nav className="tabs">
-        <Link className={active === "play" ? "on" : ""} href={`/world/?id=${worldId}`}>
+        <Link className={active === "play" ? "on" : ""} href={`/world/?id=${worldId}`} prefetch={true}>
           开演
         </Link>
-        <Link className={active === "setting" ? "on" : ""} href={`/world/setting/?id=${worldId}`}>
+        <Link className={active === "setting" ? "on" : ""} href={`/world/setting/?id=${worldId}`} prefetch={true}>
           设定
         </Link>
-        <Link className={active === "characters" ? "on" : ""} href={`/world/characters/?id=${worldId}`}>
+        <Link className={active === "characters" ? "on" : ""} href={`/world/characters/?id=${worldId}`} prefetch={true}>
           人物
         </Link>
-        <Link className={active === "favorites" ? "on" : ""} href={`/world/favorites/?id=${worldId}`}>
+        <Link className={active === "favorites" ? "on" : ""} href={`/world/favorites/?id=${worldId}`} prefetch={true}>
           收藏
         </Link>
       </nav>

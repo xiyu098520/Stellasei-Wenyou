@@ -67,7 +67,10 @@ a { color: inherit; text-decoration: none; }
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: calc(env(safe-area-inset-top) + 10px) 22px 6px;
+  /* 切页时让内容轻轻淡入，避免硬切的顿挫感（只动 opacity，开销很小） */
+  animation: page-in .18s ease-out;
 }
+@keyframes page-in { from { opacity: .45; } to { opacity: 1; } }
 /* 安卓上底部安全区会被系统虚报成 34px，这里一律用固定小值，贴着底边 */
 .page.fill { flex: 1; height: 100%; overflow: hidden; overscroll-behavior: auto; padding-bottom: 3px; }
 
