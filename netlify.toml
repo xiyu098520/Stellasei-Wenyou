@@ -29,3 +29,11 @@
   for = "/_next/static/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# 字体切片文件名固定、内容不变，必须让浏览器长期缓存。
+# 之前沿用全局的 max-age=0，每次进页面都要重新验证 100 多个切片（18.6MB），
+# 这就是切页、进设置页要等 1–2 秒的主因。
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
