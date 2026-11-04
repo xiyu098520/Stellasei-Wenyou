@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { Fragment, Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import WorldTabs from "@/components/WorldTabs";
 import { getWorld, putWorld } from "@/lib/db";
 import { loadSettings } from "@/lib/settings";
@@ -169,7 +169,23 @@ function writePreview(w: AiWrite) {
 }
 
 export default function SettingPage() {
-  const params = useParams<{ id: string }>();
+  // 静态导出没有动态路由，世界 id 改从查询串读；useSearchParams 必须包在 Suspense 里
+  return (
+    <Suspense
+      fallback={
+        <main className="page">
+          <div className="loading">正在翻开</div>
+        </main>
+      }
+    >
+      <Setting />
+    </Suspense>
+  );
+}
+
+function Setting() {
+  const search = useSearchParams();
+  const worldId = search.get("id") || "";
   const [world, setWorld] = useState<World | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingSource, setEditingSource] = useState(false);
@@ -195,7 +211,7 @@ export default function SettingPage() {
   // 卸载时补一次，改完马上回去开演也能带上新设定。
   const latest = useRef<World | null>(null);
   const aiBodyRef = useRef<HTMLDivElement>(null);
-  const aiKey = `wenyou.assistant.${params.id}`;
+  const aiKey = `wenyou.assistant.${worldId}`;
 
   useEffect(() => {
     try {
@@ -246,7 +262,7 @@ export default function SettingPage() {
 
   useEffect(() => {
     (async () => {
-      let w = await getWorld(params.id);
+      let w = await getWorld(worldId);
       if (!w) {
         setLoading(false);
         return;
@@ -267,7 +283,7 @@ export default function SettingPage() {
       setWorld(w);
       setLoading(false);
     })();
-  }, [params.id]);
+  }, [worldId]);
 
   useEffect(() => {
     if (!world) return;
@@ -640,7 +656,7 @@ export default function SettingPage() {
       {world.characters.length > 0 && (
         <div className="chcards">
           {world.characters.map((c) => (
-            <Link className="chcard" href={`/world/${world.id}/character/${c.id}`} key={c.id}>
+            <Link className="chcard" href={`/world/character/?id=${world.id}&cid=${c.id}`} key={c.id}>
               <span className="cf">
                 {c.avatar ? <img src={c.avatar} alt="" /> : (c.name || "？").slice(0, 1)}
               </span>
@@ -649,7 +665,7 @@ export default function SettingPage() {
           ))}
         </div>
       )}
-      <Link className="cnew" href={`/world/${world.id}/character/new`}>
+      <Link className="cnew" href={`/world/character/?id=${world.id}&cid=new`}>
         ＋ 新建一张
       </Link>
     </div>
@@ -862,7 +878,7 @@ export default function SettingPage() {
           <span>
             人物 <b>{world.characters.length}</b>
           </span>
-          <Link href={`/world/${world.id}/characters`}>去建人物 ›</Link>
+          <Link href={`/world/characters/?id=${world.id}`}>去建人物 ›</Link>
         </div>
       </div>
 
@@ -872,7 +888,7 @@ export default function SettingPage() {
           <button type="button" className="aside" onClick={() => setAiOpen(true)}>
             世界小助手<em>让它帮你写</em>
           </button>
-          <Link className="go" href={`/world/${world.id}`}>
+          <Link className="go" href={`/world/?id=${world.id}`}>
             去开演<u>→</u>
           </Link>
         </div>

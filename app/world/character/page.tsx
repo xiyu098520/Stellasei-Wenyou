@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { getWorld, putWorld } from "@/lib/db";
 import { readImage } from "@/lib/image";
 import { Character, Field, newId, World } from "@/lib/types";
@@ -46,10 +46,26 @@ function Auto({
 }
 
 export default function CharacterPage() {
-  const params = useParams<{ id: string; cid: string }>();
+  // 静态导出没有动态路由，世界 id 和人物 id 改从查询串读；useSearchParams 必须包在 Suspense 里
+  return (
+    <Suspense
+      fallback={
+        <main className="page">
+          <div className="loading">正在翻开</div>
+        </main>
+      }
+    >
+      <CharacterEditor />
+    </Suspense>
+  );
+}
+
+function CharacterEditor() {
+  const search = useSearchParams();
   const router = useRouter();
-  const worldId = params.id;
-  const isNew = params.cid === "new";
+  const worldId = search.get("id") || "";
+  const cid = search.get("cid") || "";
+  const isNew = cid === "new";
   const [world, setWorld] = useState<World | null>(null);
   const [card, setCard] = useState<Character | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,11 +82,11 @@ export default function CharacterPage() {
       if (isNew) {
         setCard(blankCard());
       } else {
-        setCard(w.characters.find((c) => c.id === params.cid) || null);
+        setCard(w.characters.find((c) => c.id === cid) || null);
       }
       setLoading(false);
     })();
-  }, [worldId, params.cid, isNew]);
+  }, [worldId, cid, isNew]);
 
   function set(patch: Partial<Character>) {
     setCard((c) => (c ? { ...c, ...patch } : c));
@@ -115,7 +131,7 @@ export default function CharacterPage() {
     if (mode === "again") {
       setCard(blankCard());
     } else {
-      router.push(`/world/${world.id}/characters`);
+      router.push(`/world/characters/?id=${world.id}`);
     }
   }
 
@@ -125,7 +141,7 @@ export default function CharacterPage() {
     const next: World = { ...world, characters: world.characters.filter((c) => c.id !== card.id) };
     setWorld(next);
     await putWorld(next);
-    router.push(`/world/${world.id}/characters`);
+    router.push(`/world/characters/?id=${world.id}`);
   }
 
   if (loading) {
@@ -140,7 +156,7 @@ export default function CharacterPage() {
     return (
       <main className="page">
         <div className="topbar">
-          <Link className="where" href={`/world/${worldId}/characters`}>
+          <Link className="where" href={`/world/characters/?id=${worldId}`}>
             <u>‹</u>人物
           </Link>
         </div>
@@ -152,7 +168,7 @@ export default function CharacterPage() {
   return (
     <main className="page">
       <div className="topbar">
-        <Link className="where" href={`/world/${world.id}/characters`}>
+        <Link className="where" href={`/world/characters/?id=${world.id}`}>
           <u>‹</u>人物
         </Link>
         <nav className="tabs">

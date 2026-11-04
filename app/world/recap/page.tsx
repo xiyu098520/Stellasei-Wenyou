@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { getSave, getWorld, putSave } from "@/lib/db";
 import {
   CHAPTER_TURNS,
@@ -18,8 +18,23 @@ const CN = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "…" : s);
 
 export default function RecapPage() {
-  const params = useParams<{ id: string }>();
-  const worldId = params.id;
+  // 静态导出没有动态路由，世界 id 改从查询串读；useSearchParams 必须包在 Suspense 里
+  return (
+    <Suspense
+      fallback={
+        <main className="page">
+          <div className="loading">正在翻开</div>
+        </main>
+      }
+    >
+      <Recap />
+    </Suspense>
+  );
+}
+
+function Recap() {
+  const search = useSearchParams();
+  const worldId = search.get("id") || "";
   const router = useRouter();
   const [world, setWorld] = useState<World | null>(null);
   const [save, setSave] = useState<Save | null>(null);
@@ -150,13 +165,13 @@ export default function RecapPage() {
   async function clearAll() {
     if (!save) return;
     await putSave({ ...emptySave(worldId), seed: save.seed });
-    router.replace(`/world/${worldId}`);
+    router.replace(`/world/?id=${worldId}`);
   }
 
   return (
     <main className="page">
       <div className="topbar">
-        <Link className="where" href={`/world/${world.id}`}>
+        <Link className="where" href={`/world/?id=${world.id}`}>
           <u>‹</u>
           {world.title}
         </Link>
@@ -319,7 +334,7 @@ export default function RecapPage() {
           <span className="aside">
             退一步<em>退掉的不留</em>
           </span>
-          <Link className="go" href={`/world/${world.id}`}>
+          <Link className="go" href={`/world/?id=${world.id}`}>
             去开演<u>→</u>
           </Link>
         </div>

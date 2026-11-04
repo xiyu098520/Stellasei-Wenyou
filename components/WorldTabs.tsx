@@ -16,16 +16,16 @@ export default function WorldTabs({
         {title}
       </Link>
       <nav className="tabs">
-        <Link className={active === "play" ? "on" : ""} href={`/world/${worldId}`}>
+        <Link className={active === "play" ? "on" : ""} href={`/world/?id=${worldId}`}>
           开演
         </Link>
-        <Link className={active === "setting" ? "on" : ""} href={`/world/${worldId}/setting`}>
+        <Link className={active === "setting" ? "on" : ""} href={`/world/setting/?id=${worldId}`}>
           设定
         </Link>
-        <Link className={active === "characters" ? "on" : ""} href={`/world/${worldId}/characters`}>
+        <Link className={active === "characters" ? "on" : ""} href={`/world/characters/?id=${worldId}`}>
           人物
         </Link>
-        <Link className={active === "favorites" ? "on" : ""} href={`/world/${worldId}/favorites`}>
+        <Link className={active === "favorites" ? "on" : ""} href={`/world/favorites/?id=${worldId}`}>
           收藏
         </Link>
       </nav>

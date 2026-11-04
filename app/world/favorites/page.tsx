@@ -1,16 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import WorldTabs from "@/components/WorldTabs";
 import { deleteFavorite, getWorld, listFavorites, type Favorite } from "@/lib/db";
 import { characterByName } from "@/lib/prompt";
 import type { World } from "@/lib/types";
 
 export default function FavoritesPage() {
-  const params = useParams<{ id: string }>();
-  const worldId = params.id;
+  // 静态导出没有动态路由，世界 id 改从查询串读；useSearchParams 必须包在 Suspense 里
+  return (
+    <Suspense
+      fallback={
+        <main className="page">
+          <div className="loading">正在翻开</div>
+        </main>
+      }
+    >
+      <Favorites />
+    </Suspense>
+  );
+}
+
+function Favorites() {
+  const search = useSearchParams();
+  const worldId = search.get("id") || "";
   const [world, setWorld] = useState<World | null>(null);
   const [items, setItems] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);

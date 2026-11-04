@@ -87,7 +87,7 @@ export default function HomePage() {
       updatedAt: now,
     };
     await putWorld(world);
-    router.push(`/world/${world.id}/setting`);
+    router.push(`/world/setting/?id=${world.id}`);
   }
 
   async function onCover(file: File) {
@@ -205,7 +205,7 @@ export default function HomePage() {
           <button type="button" className="setbtn" onClick={() => importInput.current?.click()}>
             导入
           </button>
-          <button type="button" className="setbtn" onClick={() => router.push("/settings")}>
+          <button type="button" className="setbtn" onClick={() => router.push("/settings/")}>
             设置
           </button>
           <button type="button" className="setbtn" onClick={hardRefresh}>
@@ -253,7 +253,7 @@ export default function HomePage() {
           const label = save ? chapterLabel(save) : "序章";
           const turns = save ? save.messages.filter((m) => m.role === "user").length : 0;
           return (
-            <article key={w.id} className="wcard" onClick={() => router.push(`/world/${w.id}`)}>
+            <article key={w.id} className="wcard" onClick={() => router.push(`/world/?id=${w.id}`)}>
               {w.cover ? (
                 <img className="wcover" src={w.cover} alt="" />
               ) : (

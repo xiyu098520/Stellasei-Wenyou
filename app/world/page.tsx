@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import WorldTabs from "@/components/WorldTabs";
 import { getSave, getVoiceClip, getWorld, putFavorite, putSave, putVoiceClip } from "@/lib/db";
 import { archiveAsk, buildMessages, characterByName } from "@/lib/prompt";
@@ -258,8 +258,23 @@ function rescueSave(s: Save): Save {
 }
 
 export default function PlayPage() {
-  const params = useParams<{ id: string }>();
-  const worldId = params.id;
+  // 静态导出没有动态路由，世界 id 改从查询串读；useSearchParams 必须包在 Suspense 里
+  return (
+    <Suspense
+      fallback={
+        <main className="page">
+          <div className="loading">正在翻开</div>
+        </main>
+      }
+    >
+      <Play />
+    </Suspense>
+  );
+}
+
+function Play() {
+  const search = useSearchParams();
+  const worldId = search.get("id") || "";
   const [world, setWorld] = useState<World | null>(null);
   const [save, setSave] = useState<Save | null>(null);
   const [loading, setLoading] = useState(true);
@@ -868,7 +883,7 @@ export default function PlayPage() {
             ↻ 重写这一回合
           </button>
         )}
-        <Link href={`/world/${world.id}/recap`}>回顾 ›</Link>
+        <Link href={`/world/recap/?id=${world.id}`}>回顾 ›</Link>
       </div>
       {regenOpen && hasMessages && (
         <div className="regenbox">
@@ -1128,7 +1143,7 @@ export default function PlayPage() {
 
         {error ? (
           <div className="hint">
-            <Link href="/settings">{error}</Link>
+            <Link href="/settings/">{error}</Link>
           </div>
         ) : !busy && lastAssistant?.options?.length ? (
           <div className="hint">

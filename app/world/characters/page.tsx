@@ -1,24 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import WorldTabs from "@/components/WorldTabs";
 import { getWorld } from "@/lib/db";
 import { World } from "@/lib/types";
 
 export default function CharactersPage() {
-  const params = useParams<{ id: string }>();
+  // 静态导出没有动态路由，世界 id 改从查询串读；useSearchParams 必须包在 Suspense 里
+  return (
+    <Suspense
+      fallback={
+        <main className="page">
+          <div className="loading">正在翻开</div>
+        </main>
+      }
+    >
+      <Characters />
+    </Suspense>
+  );
+}
+
+function Characters() {
+  const search = useSearchParams();
+  const worldId = search.get("id") || "";
   const [world, setWorld] = useState<World | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const w = await getWorld(params.id);
+      const w = await getWorld(worldId);
       setWorld(w || null);
       setLoading(false);
     })();
-  }, [params.id]);
+  }, [worldId]);
 
   if (loading) {
     return (
@@ -49,7 +65,7 @@ export default function CharactersPage() {
 
       <div className="clist">
         {world.characters.map((c, i) => (
-          <Link className="crow" href={`/world/${world.id}/character/${c.id}`} key={c.id}>
+          <Link className="crow" href={`/world/character/?id=${world.id}&cid=${c.id}`} key={c.id}>
             <span className="face">
               {c.avatar ? <img src={c.avatar} alt="" /> : (c.name || "？").slice(0, 1)}
             </span>
@@ -81,7 +97,7 @@ export default function CharactersPage() {
           </Link>
         ))}
 
-        <Link className="crow add" href={`/world/${world.id}/character/new`}>
+        <Link className="crow add" href={`/world/character/?id=${world.id}&cid=new`}>
           <span className="face">＋</span>
           <div className="txt">
             <h4 style={{ color: "var(--ink-2)" }}>新建人物</h4>
@@ -101,7 +117,7 @@ export default function CharactersPage() {
           <span className="aside">
             音色没填就用默认<em>服务商与 Key 在设置里</em>
           </span>
-          <Link className="go" href={`/world/${world.id}/character/new`}>
+          <Link className="go" href={`/world/character/?id=${world.id}&cid=new`}>
             新建人物<u>→</u>
           </Link>
         </div>

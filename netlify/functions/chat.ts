@@ -1,10 +1,7 @@
-import { NextRequest } from "next/server";
-import { normalizeBaseUrl } from "@/lib/baseurl";
+import { normalizeBaseUrl } from "../../lib/baseurl";
 import { appendFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
-
-export const runtime = "nodejs";
 
 // 这个中转试过一次原生接口、不通，就不再每条都试（进程重启会重来）
 let nativeBroken = false;
@@ -31,7 +28,7 @@ async function logUsage(kind: string, model: string, usage: unknown, extra?: unk
       JSON.stringify({ at: new Date().toISOString(), kind, model, usage, ...(extra ? { extra } : {}) }) + "\n";
     await appendFile(path.join(process.cwd(), ".cache-log.jsonl"), line, "utf8");
   } catch {
-    /* 日志写不进去不影响出字 */
+    /* 日志写不进去不影响出字（Netlify 上工作目录只读，这里本来也写不进去） */
   }
 }
 
@@ -41,7 +38,7 @@ function fail(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }
 
-export async function POST(req: NextRequest) {
+export default async function handler(req: Request) {
   let body: Body;
   try {
     body = await req.json();

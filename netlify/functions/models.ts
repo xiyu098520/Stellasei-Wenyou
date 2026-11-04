@@ -1,9 +1,6 @@
-import { NextRequest } from "next/server";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
-import { normalizeBaseUrl } from "@/lib/baseurl";
-
-export const runtime = "nodejs";
+import { normalizeBaseUrl } from "../../lib/baseurl";
 
 type Body = { baseUrl?: string; apiKey?: string };
 
@@ -11,7 +8,7 @@ function fail(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }
 
-export async function POST(req: NextRequest) {
+export default async function handler(req: Request) {
   let body: Body;
   try {
     body = await req.json();
