@@ -207,7 +207,7 @@ function Recap() {
             baseUrl: cfg.baseUrl,
             apiKey: cfg.apiKey,
             model: cfg.model,
-            messages: archiveAsk(world, i + 1, transcript, save.clocks?.[i]),
+            messages: archiveAsk(world, i + 1, transcript, save.clocks?.[i], save.archive?.[i - 1]?.relations),
             maxTokens: 6000,
             // 档案要写满一整章，一次性等整段 JSON 会被网关掐成 504，这里改边收边拼
             stream: true,

@@ -62,22 +62,34 @@ function pairKey(r: Relation) {
 
 // 没兑现的事按内容合并：模型只回这一回合新埋的、变了的、兑现的。
 // 兑现的那条带「✓」，按内容对上就删掉，没提到的旧条目一律留着。
+// 同一件事模型常写成「（进行中）」「（遵医生医嘱）」等不同后缀，去掉括号里的状态再比。
 function threadKey(t: string) {
   return t
     .replace(/^✓\s*/, "")
     .replace(/^\d+月\d+日\s*·?\s*/, "")
+    .replace(/（[^）]*）/g, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/[，,。；;、·\s]/g, "")
     .trim();
 }
 
 function mergeThreads(old: string[], delta: string[]): string[] {
-  if (!delta.length) return old;
-  const next = new Map(old.map((t) => [threadKey(t), t]));
+  // 先按内容把旧条目自己归并一次，清掉历史遗留的重复
+  const next = new Map<string, string>();
+  old.forEach((t) => next.set(threadKey(t), t));
+  if (!delta.length) return [...next.values()];
   delta.forEach((d) => {
     const k = threadKey(d);
     if (d.trim().startsWith("✓")) next.delete(k);
     else next.set(k, d);
   });
   return [...next.values()].slice(-24);
+}
+
+function healThreads(s: Save): Save {
+  if (!s.threads?.length) return s;
+  const merged = mergeThreads(s.threads, []);
+  return merged.length === s.threads.length ? s : { ...s, threads: merged };
 }
 
 // 旧版整表替换把前几章的关系挤掉了：各章档案里还留着，启动时把缺的人补回总表。
@@ -373,7 +385,7 @@ function Play() {
         return;
       }
       const s = await getSave(worldId);
-      const fixed = s ? healRelations(rescueSave(s)) : s;
+      const fixed = s ? healThreads(healRelations(rescueSave(s))) : s;
       setWorld(w);
       setSave(fixed);
       if (fixed?.seed) setSeed(fixed.seed);
@@ -432,7 +444,7 @@ function Play() {
           baseUrl: cfg.baseUrl,
           apiKey: cfg.apiKey,
           model: cfg.model,
-          messages: archiveAsk(world, idx + 1, transcript, base.clocks?.[idx]),
+          messages: archiveAsk(world, idx + 1, transcript, base.clocks?.[idx], base.archive?.[idx - 1]?.relations),
           maxTokens: 6000,
         }),
       });

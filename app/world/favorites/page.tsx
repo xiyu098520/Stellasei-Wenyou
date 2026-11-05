@@ -30,6 +30,8 @@ function Favorites() {
   const [items, setItems] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState<string | null>(null);
+  // 当前展开的角色分组（一次只开一个，省得页面太长）
+  const [open, setOpen] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
 
@@ -82,6 +84,18 @@ function Favorites() {
     setItems((list) => list.filter((x) => x.key !== f.key));
   }
 
+  // 按出场角色分组，组内保持收藏顺序
+  const grouped = (() => {
+    const map = new Map<string, Favorite[]>();
+    items.forEach((f) => {
+      const k = f.speaker || "";
+      const list = map.get(k) || [];
+      list.push(f);
+      map.set(k, list);
+    });
+    return [...map.entries()];
+  })();
+
   if (loading) {
     return (
       <main className="page">
@@ -110,42 +124,61 @@ function Favorites() {
         {items.length === 0 ? (
           <p className="emptyhint">还没有收藏。长按台词旁边的播放键，就能把这句留在这里。</p>
         ) : (
-          items.map((f) => {
-            const c = characterByName(world, f.speaker);
+          // 按角色分组：分组头显示名字和条数，点开才展开那一句句
+          grouped.map(([name, list]) => {
+            const c = characterByName(world, name);
+            const opened = open === name;
             return (
-              <div className="blk say" key={f.key}>
-                <div className="sayer">
-                  <span className="face">
-                    {c?.avatar ? <img src={c.avatar} alt="" /> : (f.speaker || "？").slice(0, 1)}
+              <div key={name || "?"}>
+                <button
+                  type="button"
+                  className="fg"
+                  onClick={() => setOpen(opened ? null : name)}
+                  aria-expanded={opened}
+                >
+                  <span className="fgwho">
+                    <span className="face">
+                      {c?.avatar ? <img src={c.avatar} alt="" /> : (name || "？").slice(0, 1)}
+                    </span>
+                    <span className="who">{name || "某人"}</span>
                   </span>
-                  <span className="who">{f.speaker || "某人"}</span>
-                  <button
-                    type="button"
-                    className={playing === f.key ? "playbtn on" : "playbtn"}
-                    onClick={() => toggle(f)}
-                    aria-label={playing === f.key ? "停止" : "念这句"}
-                  >
-                    <svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true">
-                      {playing === f.key ? (
-                        <>
-                          <rect x="3" y="2.4" width="1.7" height="7.2" rx=".6" fill="currentColor" />
-                          <rect x="7.3" y="2.4" width="1.7" height="7.2" rx=".6" fill="currentColor" />
-                        </>
-                      ) : (
-                        <path d="M3.4 1.9v8.2l7-4.1z" fill="currentColor" />
-                      )}
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    className="favdel"
-                    onClick={() => void remove(f)}
-                    aria-label="取消收藏"
-                  >
-                    移除
-                  </button>
-                </div>
-                <p>{f.text}</p>
+                  <span className="fgcount">
+                    {list.length} 条{opened ? " · 收起" : ""}
+                  </span>
+                </button>
+                {opened &&
+                  list.map((f) => (
+                    <div className="blk say" key={f.key}>
+                      <div className="sayer">
+                        <button
+                          type="button"
+                          className={playing === f.key ? "playbtn on" : "playbtn"}
+                          onClick={() => toggle(f)}
+                          aria-label={playing === f.key ? "停止" : "念这句"}
+                        >
+                          <svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true">
+                            {playing === f.key ? (
+                              <>
+                                <rect x="3" y="2.4" width="1.7" height="7.2" rx=".6" fill="currentColor" />
+                                <rect x="7.3" y="2.4" width="1.7" height="7.2" rx=".6" fill="currentColor" />
+                              </>
+                            ) : (
+                              <path d="M3.4 1.9v8.2l7-4.1z" fill="currentColor" />
+                            )}
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="favdel"
+                          onClick={() => void remove(f)}
+                          aria-label="取消收藏"
+                        >
+                          移除
+                        </button>
+                      </div>
+                      <p>{f.text}</p>
+                    </div>
+                  ))}
               </div>
             );
           })
