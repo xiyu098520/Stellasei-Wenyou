@@ -24,8 +24,8 @@ import {
   World,
 } from "@/lib/types";
 
-// 自动裁剪已恢复：原文只留最近两章，更早的章只留章末档案（档案写成功才砍）。
-const TRIM_CHAPTERS = true;
+// 暂时关闭自动裁剪：旧章原文要留着给「重写本章档案」重新总结，重写完了再改回 true。
+const TRIM_CHAPTERS = false;
 
 type ChatReply = {
   segments: Segment[];
