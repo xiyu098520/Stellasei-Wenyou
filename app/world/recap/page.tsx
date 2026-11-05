@@ -336,7 +336,10 @@ function Recap() {
                         · {e}
                       </p>
                     ))}
-                    {r.relations.map((x, k) => (
+                    {r.relations
+                      // 已归档章如果是旧版「定格」，档位可能已经回退过，不再显示，免得误导
+                      .filter((x) => !r.gone || (x.state || "").includes("→"))
+                      .map((x, k) => (
                       <p className="trecap" key={`${r.num}-rel-${k}`}>
                         ◇ {x.a}↔{x.b}：{x.state}
                       </p>

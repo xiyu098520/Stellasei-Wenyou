@@ -145,8 +145,10 @@ export function buildMessages(
         .filter(Boolean)
         .map((e) => `· ${clip(e, 100)}`)
         .join("\n");
+      // 只带新格式的「变化记录」（含 L档→L档）；旧档案的「定格」不带箭头，
+      // 那些是已回退的旧档位，喂进正文只会把现在的关系往回带。
       const rel = (a.relations || [])
-        .filter((r) => r && r.state?.trim())
+        .filter((r) => r && r.state?.trim() && r.state.includes("→"))
         .slice(0, 12)
         .map((r) => `${r.a}↔${r.b}：${clip(r.state.trim(), 45)}`)
         .join("；");
