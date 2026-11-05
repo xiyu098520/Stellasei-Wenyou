@@ -102,6 +102,7 @@ function Recap() {
       name: `${title ? `${label} · ${title}` : label}${span ? `（${span}）` : ""}`,
       recap: a?.state || a?.summary || save.recaps?.[i] || "",
       events: a?.events || [],
+      relations: a?.relations || [],
       gone: i < droppedChapters,
       last: i === total - 1,
     };
@@ -314,6 +315,11 @@ function Recap() {
                     {r.events.map((e, k) => (
                       <p className="trecap" key={`${r.num}-${k}`}>
                         · {e}
+                      </p>
+                    ))}
+                    {r.relations.map((x, k) => (
+                      <p className="trecap" key={`${r.num}-rel-${k}`}>
+                        ◇ {x.a}↔{x.b}：{x.state}
                       </p>
                     ))}
                     {r.gone ? null : (
