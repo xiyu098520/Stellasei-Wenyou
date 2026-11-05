@@ -69,25 +69,35 @@ export default async function handler(req: Request) {
   // 长任务（重写/生成章末档案）走流式：一次性等整段 JSON 会被网关掐成 504，
   // 这里只做转发，边收边攒在前端拼起来。
   if (body.stream) {
-    const payload = {
-      model,
-      messages: flat,
-      temperature: 0.85,
-      stream: true,
-      ...(maxTokens ? { max_tokens: maxTokens } : {}),
-      ...(/gemini/i.test(model) ? { reasoning_effort: "medium" } : {}),
-    };
-    try {
-      const res = await fetch(url, {
+    const build = (jsonMode: boolean) =>
+      JSON.stringify({
+        model,
+        messages: flat,
+        temperature: 0.85,
+        stream: true,
+        ...(maxTokens ? { max_tokens: maxTokens } : {}),
+        // 档案要的是结构化的 JSON，模型进了 JSON 模式才不会自由发挥编事件
+        ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+        ...(/gemini/i.test(model) ? { reasoning_effort: "medium" } : {}),
+      });
+    const send = (jsonMode: boolean) =>
+      fetch(url, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify(payload),
+        body: build(jsonMode),
         cache: "no-store",
         signal: AbortSignal.timeout(240_000),
       });
+    try {
+      let res = await send(body.json !== false);
+      // 有的中转不认 response_format，400 时退回普通模式重试一次
+      if (!res.ok && res.status === 400 && body.json !== false) {
+        await res.text().catch(() => "");
+        res = await send(false);
+      }
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
         return fail(`模型返回 ${res.status}：${detail.slice(0, 160)}`, 502);
