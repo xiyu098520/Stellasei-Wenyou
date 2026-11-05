@@ -66,11 +66,11 @@ export default async function handler(req: Request) {
   // 兼容接口只认字符串，把分块拼回去
   const flat = messages.map((m) => ({ role: m.role, content: asText(m.content) }));
 
-  // OpenAI / Gemini 这类没有可打的缓存断点，缓存是全自动的前缀匹配。
+  // OpenAI 系（gpt-*、o1~o4）没有可打的缓存断点，缓存是全自动的前缀匹配。
   // 能做的是给同一段对话一个固定的 prompt_cache_key，让请求始终落到同一块缓存上；
   // key 只能由「不变的头」算出来（模型 + system + 第一条 user），掺进每轮新内容就等于每轮换 key。
-  // 之前只给 gpt 系发，Gemini 因此只有 system 那段（约 16.7K）被缓存，正文历史每轮重算。
-  const openaiish = /gpt|chatgpt|^o[1-4](-|$)|gemini/i.test(model);
+  // 实测：给 Gemini 也发这个字段后，中转反而少命中，说明它不吃这个 key，回退成只给 gpt 系发。
+  const openaiish = /gpt|chatgpt|^o[1-4](-|$)/i.test(model);
   const cacheKey = createHash("sha1")
     .update(
       [
