@@ -5,7 +5,7 @@ import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation";
 import WorldTabs from "@/components/WorldTabs";
 import { getSave, getVoiceClip, getWorld, putFavorite, putSave, putVoiceClip } from "@/lib/db";
-import { archiveAsk, buildMessages, characterByName } from "@/lib/prompt";
+import { archiveAsk, buildMessages, characterByName, parseArchive } from "@/lib/prompt";
 import { loadSettings } from "@/lib/settings";
 import { pullJson, pullLoose, pullSegments, pullStrings } from "@/lib/json";
 import {
@@ -23,6 +23,9 @@ import {
   turnsOf,
   World,
 } from "@/lib/types";
+
+// 临时关闭：旧章的原文要留给「重写本章档案」重新总结，等重写完再改回 true 恢复自动裁剪。
+const TRIM_CHAPTERS = false;
 
 type ChatReply = {
   segments: Segment[];
@@ -435,47 +438,16 @@ function Play() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) return;
-      const raw = String(data?.content || "");
-      const s = raw.indexOf("{");
-      const e = raw.lastIndexOf("}");
-      if (s < 0 || e <= s) return;
-      const j = JSON.parse(raw.slice(s, e + 1));
-      // 旧字段是 summary；新档案只有 state（这一章停在哪）。
-      // 两者都收，缺一个就退回另一个，不然老存档的章会变成空白。
-      const state = String(j.state || j.summary || "").trim().slice(0, 80);
-      if (!state) return;
-      const entry = {
-        title: String(j.title || "").trim().slice(0, 16),
-        state,
-        summary: state,
-        period: String(j.period || "").trim().slice(0, 40),
-        events: Array.isArray(j.events)
-          ? j.events.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 100)).slice(0, 60)
-          : [],
-        relations: Array.isArray(j.relations)
-          ? j.relations
-              .filter((r: unknown) => {
-                const o = r as { a?: string; b?: string; state?: string };
-                return !!o && typeof o.a === "string" && typeof o.b === "string" && typeof o.state === "string" && o.a.trim() && o.b.trim() && o.state.trim();
-              })
-              .map((r: { a: string; b: string; state: string }) => ({
-                a: r.a.trim().slice(0, 12),
-                b: r.b.trim().slice(0, 12),
-                state: r.state.trim().slice(0, 24),
-              }))
-              .slice(0, 8)
-          : [],
-        scenes: Array.isArray(j.scenes)
-          ? j.scenes.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 80)).slice(0, 3)
-          : [],
-      };
+      // 字段收敛统一放在 parseArchive 里，「重写本章档案」用的是同一份
+      const entry = parseArchive(String(data?.content || ""));
+      if (!entry) return;
       const cur = (await getSave(worldId)) || base;
       const archive = [...(cur.archive || [])];
       archive[idx] = entry;
       const chapterTitles = [...(cur.chapterTitles || [])];
       if (!chapterTitles[idx]?.trim() && entry.title) chapterTitles[idx] = entry.title;
       const recaps = [...(cur.recaps || [])];
-      if (!recaps[idx]?.trim()) recaps[idx] = state;
+      if (!recaps[idx]?.trim()) recaps[idx] = entry.state || entry.summary;
       const next: Save = { ...cur, archive, chapterTitles, recaps, updatedAt: Date.now() };
       await putSave(next);
       setSave((prev) => (prev ? { ...prev, archive, chapterTitles, recaps } : prev));
@@ -488,6 +460,7 @@ function Play() {
   // 档案写成了就用档案；档案没写成（总结接口失败）但有 chapter recap 的，也照样砍，
   // 否则旧存档会一直不砍、历史无限变长——recap 里至少有这一章停在哪。
   function trimChapters(s: Save): Save {
+    if (!TRIM_CHAPTERS) return s;
     const done = Math.floor(turnsOf(s) / CHAPTER_TURNS);
     const target = Math.max(0, (done - 1) * CHAPTER_TURNS);
     if (target <= (s.droppedTurns || 0)) return s;

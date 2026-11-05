@@ -4,8 +4,11 @@ import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getSave, getWorld, putSave } from "@/lib/db";
+import { archiveAsk, parseArchive } from "@/lib/prompt";
+import { loadSettings } from "@/lib/settings";
 import {
   CHAPTER_TURNS,
+  Message,
   Save,
   chapterLabel,
   chapterTitleOf,
@@ -44,6 +47,9 @@ function Recap() {
   const [openCh, setOpenCh] = useState<number[] | null>(null);
   const [wipe, setWipe] = useState(false);
   const [back, setBack] = useState("");
+  // 「重写本章档案」：一次只跑一章，结果就近显示在那一章下面
+  const [busyCh, setBusyCh] = useState<number | null>(null);
+  const [note, setNote] = useState<{ i: number; text: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -161,6 +167,67 @@ function Recap() {
     await putSave(next);
   }
 
+  // 把某一章的原文捞出来喂给档案模型。回合号从被砍的地方接着数，跟世界页保持一致。
+  function chapterTranscript(messages: Message[], idx: number, base = 0) {
+    let turn = base;
+    const out: string[] = [];
+    messages.forEach((m) => {
+      if (m.role === "user") turn += 1;
+      const at = Math.ceil(Math.max(turn, 1) / CHAPTER_TURNS) - 1;
+      if (at !== idx) return;
+      if (m.role === "user") {
+        out.push(`玩家：${m.text}`);
+      } else {
+        const body = (m.segments || [])
+          .map((s) => (s.type === "line" ? `${s.speaker || "某人"}${s.via ? `（${s.via}）` : ""}：「${s.text}」` : s.text))
+          .join("\n");
+        if (body.trim()) out.push(body);
+      }
+    });
+    return out.join("\n\n");
+  }
+
+  // 用那一章的原文重新生成档案，覆盖旧的那一份；recap 与标题不动，只把档案写厚
+  async function rewriteChapter(i: number) {
+    if (!save || !world) return;
+    setBusyCh(i);
+    setNote({ i, text: "正在重写…" });
+    try {
+      const cfg = loadSettings().assistant;
+      if (!cfg.apiKey.trim()) throw new Error("设置里还没填总结模型的 Key");
+      const transcript = chapterTranscript(save.messages, i, save.droppedTurns || 0);
+      if (!transcript.trim()) throw new Error("这一章的原文已经不在了，没法重写");
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: cfg.baseUrl,
+          apiKey: cfg.apiKey,
+          model: cfg.model,
+          messages: archiveAsk(world, i + 1, transcript, save.clocks?.[i]),
+          maxTokens: 6000,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(String((data as { error?: string } | null)?.error || `请求失败 ${res.status}`));
+      const entry = parseArchive(String(data?.content || ""));
+      if (!entry) throw new Error("模型返回的档案不完整");
+      const cur = (await getSave(worldId)) || save;
+      const archive = [...(cur.archive || [])];
+      archive[i] = entry;
+      const chapterTitles = [...(cur.chapterTitles || [])];
+      if (!chapterTitles[i]?.trim() && entry.title) chapterTitles[i] = entry.title;
+      const next: Save = { ...cur, archive, chapterTitles, updatedAt: Date.now() };
+      await putSave(next);
+      setSave(next);
+      setNote({ i, text: `已重写：${entry.events.length} 条事件` });
+    } catch (err) {
+      setNote({ i, text: `失败：${(err as Error).message}` });
+    } finally {
+      setBusyCh(null);
+    }
+  }
+
   // 清空这一册：回合、章节、关系、伏笔全扔掉，开场那句话留着
   async function clearAll() {
     if (!save) return;
@@ -216,6 +283,12 @@ function Recap() {
                         · {e}
                       </p>
                     ))}
+                    {r.gone ? null : (
+                      <button type="button" className="rearch" disabled={busyCh === r.num - 1} onClick={() => rewriteChapter(r.num - 1)}>
+                        {busyCh === r.num - 1 ? "重写中…" : "重写本章档案"}
+                      </button>
+                    )}
+                    {note && note.i === r.num - 1 ? <p className="renote">{note.text}</p> : null}
                     {list.length ? (
                       list.map(({ m, i }, k) => (
                         <div className="turnrow" key={m.id}>

@@ -1,4 +1,4 @@
-import { CHAPTER_TURNS, type Character, type Message, type Save, type World } from "./types";
+import { CHAPTER_TURNS, type ChapterArchive, type Character, type Message, type Save, type World } from "./types";
 
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "…" : s);
 
@@ -441,4 +441,53 @@ export function characterByName(world: World, name?: string): Character | undefi
     const cn = clean(c.name);
     return cn.length >= 2 && (n.includes(cn) || cn.includes(n));
   });
+}
+
+// 把档案模型吐出来的 JSON 收成 ChapterArchive。章末自动归档和「重写本章档案」都走这里，
+// 免得两处字段限制不一致。解析不了、或者没写 state，就返回 null 让调用方放弃。
+export function parseArchive(raw: string): ChapterArchive | null {
+  const s = raw.indexOf("{");
+  const e = raw.lastIndexOf("}");
+  if (s < 0 || e <= s) return null;
+  let j: Record<string, unknown>;
+  try {
+    j = JSON.parse(raw.slice(s, e + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const state = String(j.state || j.summary || "").trim().slice(0, 80);
+  if (!state) return null;
+  const events = Array.isArray(j.events)
+    ? j.events
+        .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+        .map((x) => x.trim().slice(0, 100))
+        .slice(0, 60)
+    : [];
+  const relations = Array.isArray(j.relations)
+    ? j.relations
+        .filter((r) => {
+          const o = r as { a?: string; b?: string; state?: string };
+          return !!o && typeof o.a === "string" && typeof o.b === "string" && typeof o.state === "string" && o.a.trim() && o.b.trim() && o.state.trim();
+        })
+        .map((r) => {
+          const o = r as { a: string; b: string; state: string };
+          return { a: o.a.trim().slice(0, 12), b: o.b.trim().slice(0, 12), state: o.state.trim().slice(0, 24) };
+        })
+        .slice(0, 8)
+    : [];
+  const scenes = Array.isArray(j.scenes)
+    ? j.scenes
+        .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+        .map((x) => x.trim().slice(0, 80))
+        .slice(0, 3)
+    : [];
+  return {
+    title: String(j.title || "").trim().slice(0, 16),
+    state,
+    summary: state,
+    period: String(j.period || "").trim().slice(0, 40),
+    events,
+    relations,
+    scenes,
+  };
 }
