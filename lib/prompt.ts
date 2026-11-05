@@ -147,8 +147,8 @@ export function buildMessages(
         .join("\n");
       const rel = (a.relations || [])
         .filter((r) => r && r.state?.trim())
-        .slice(0, 8)
-        .map((r) => `${r.a}↔${r.b}：${clip(r.state.trim(), 20)}`)
+        .slice(0, 12)
+        .map((r) => `${r.a}↔${r.b}：${clip(r.state.trim(), 45)}`)
         .join("；");
       const tail = `${events ? `\n${events}` : ""}${rel ? `\n关系定格：${rel}` : ""}`;
       // 越早的章，那句状态压得越短；事件不压，一条都留着
@@ -418,7 +418,7 @@ export function archiveAsk(world: World, chapterNo: number, transcript: string, 
 4. 判断标准一句话：这件事删掉，下一章会不会出问题？会，就写；不会，就不写。原文明写的细节（谁在场、谁递给谁什么、谁没说话）只在重要事件里带一句，不是给每个动作记账。
 5. 下面这几类必须单独成条，不许并进别的条目：答应下来的事与约定（谁约谁、约在哪天）、送出去或借来的东西、说出口的秘密或交底、称呼的变化（第一次叫名字、第一次用只有两个人知道的叫法）、第一次做的事（第一次单独相处、第一次牵手、第一次吃醋摆在明面上）。
 6. 环境、天气、心情不进 events；它们只在和事件绑在一起时才提一句。
-7. relations 是这一章结束时的关系定格，**每章都要写，不要给 []**。覆盖这一章在场的主要角色，最多 8 条；关系没变也照当前状态写。格式 {"a":"名字","b":"名字","state":"[L档｜公开｜表白] 一句话，总长不超过 45 字"}，例「[L3｜未公开｜未表白] 嘴上逗，手会先到」。
+7. relations 是这一章结束时的关系定格，**每章都要写，不要给 []**。覆盖这一章在场的主要角色，最多 12 条；同一对角色只写一条；关系没变也照当前状态写。格式 {"a":"名字","b":"名字","state":"[L档｜公开｜表白] 一句话，总长不超过 45 字"}，例「[L3｜未公开｜未表白] 嘴上逗，手会先到」。
 8. scenes 最多 3 条，只写文本里确实铺垫过、还没发生的场面；没有就给 []。
 9. 人物用设定里的名字，不用「他」「那个女孩」代替。
 10. 已经发生过的事不要写成「即将发生」。
@@ -475,9 +475,9 @@ export function parseArchive(raw: string): ChapterArchive | null {
         })
         .map((r) => {
           const o = r as { a: string; b: string; state: string };
-          return { a: o.a.trim().slice(0, 12), b: o.b.trim().slice(0, 12), state: o.state.trim().slice(0, 24) };
+          return { a: o.a.trim().slice(0, 20), b: o.b.trim().slice(0, 20), state: o.state.trim().slice(0, 45) };
         })
-        .slice(0, 8)
+        .slice(0, 12)
     : [];
   const scenes = Array.isArray(j.scenes)
     ? j.scenes

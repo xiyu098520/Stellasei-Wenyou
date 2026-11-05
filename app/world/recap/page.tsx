@@ -198,54 +198,73 @@ function Recap() {
       if (!cfg.apiKey.trim()) throw new Error("设置里还没填总结模型的 Key");
       const transcript = chapterTranscript(save.messages, i, save.droppedTurns || 0);
       if (!transcript.trim()) throw new Error("这一章的原文已经不在了，没法重写");
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          baseUrl: cfg.baseUrl,
-          apiKey: cfg.apiKey,
-          model: cfg.model,
-          messages: archiveAsk(world, i + 1, transcript, save.clocks?.[i]),
-          maxTokens: 6000,
-          // 档案要写满一整章，一次性等整段 JSON 会被网关掐成 504，这里改边收边拼
-          stream: true,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(String((data as { error?: string } | null)?.error || `请求失败 ${res.status}`));
-      }
-      let raw = "";
-      if ((res.headers.get("content-type") || "").includes("text/event-stream") && res.body) {
-        const reader = res.body.getReader();
-        const dec = new TextDecoder();
-        let buf = "";
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buf += dec.decode(value, { stream: true });
-          const lines = buf.split("\n");
-          buf = lines.pop() || "";
-          for (const line of lines) {
-            const t = line.trim();
-            if (!t.startsWith("data:")) continue;
-            const payload = t.slice(5).trim();
-            if (!payload || payload === "[DONE]") continue;
-            try {
-              const o = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] };
-              const d = o?.choices?.[0]?.delta?.content;
-              if (typeof d === "string") raw += d;
-            } catch {
-              /* 半截的 SSE 行跳过，下一行再来 */
+      // 中间站偶尔会抽风（504、429、JSON 截断），同一个请求连试三次再判失败
+      const pull = async () => {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            baseUrl: cfg.baseUrl,
+            apiKey: cfg.apiKey,
+            model: cfg.model,
+            messages: archiveAsk(world, i + 1, transcript, save.clocks?.[i]),
+            maxTokens: 6000,
+            // 档案要写满一整章，一次性等整段 JSON 会被网关掐成 504，这里改边收边拼
+            stream: true,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(String((data as { error?: string } | null)?.error || `请求失败 ${res.status}`));
+        }
+        let raw = "";
+        if ((res.headers.get("content-type") || "").includes("text/event-stream") && res.body) {
+          const reader = res.body.getReader();
+          const dec = new TextDecoder();
+          let buf = "";
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            const lines = buf.split("\n");
+            buf = lines.pop() || "";
+            for (const line of lines) {
+              const t = line.trim();
+              if (!t.startsWith("data:")) continue;
+              const payload = t.slice(5).trim();
+              if (!payload || payload === "[DONE]") continue;
+              try {
+                const o = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] };
+                const d = o?.choices?.[0]?.delta?.content;
+                if (typeof d === "string") raw += d;
+              } catch {
+                /* 半截的 SSE 行跳过，下一行再来 */
+              }
             }
           }
+        } else {
+          const data = await res.json().catch(() => null);
+          raw = String((data as { content?: string } | null)?.content || "");
         }
-      } else {
-        const data = await res.json().catch(() => null);
-        raw = String((data as { content?: string } | null)?.content || "");
+        const parsed = parseArchive(raw);
+        if (!parsed) throw new Error("模型返回的档案不完整");
+        return parsed;
+      };
+      let entry: ReturnType<typeof parseArchive> = null;
+      let lastErr: Error | null = null;
+      for (let attempt = 1; attempt <= 3 && !entry; attempt += 1) {
+        if (attempt > 1) {
+          setNote({ i, text: `第 ${attempt} 次尝试…` });
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+        try {
+          entry = await pull();
+        } catch (err) {
+          lastErr = err as Error;
+        }
       }
-      const entry = parseArchive(raw);
-      if (!entry) throw new Error("模型返回的档案不完整");
+      if (!entry) throw lastErr || new Error("重写失败");
+
       const cur = (await getSave(worldId)) || save;
       const archive = [...(cur.archive || [])];
       archive[i] = entry;
