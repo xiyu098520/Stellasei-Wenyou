@@ -485,7 +485,8 @@ function Play() {
   }
 
   // 整章砍掉：只留最近两章原文，更早的章靠档案活。
-  // 前提是那一章的档案确实写成了——没写成就不砍，宁可多花 token 也不能丢剧情。
+  // 档案写成了就用档案；档案没写成（总结接口失败）但有 chapter recap 的，也照样砍，
+  // 否则旧存档会一直不砍、历史无限变长——recap 里至少有这一章停在哪。
   function trimChapters(s: Save): Save {
     const done = Math.floor(turnsOf(s) / CHAPTER_TURNS);
     const target = Math.max(0, (done - 1) * CHAPTER_TURNS);
@@ -493,7 +494,9 @@ function Play() {
     let keepFrom = target;
     for (let c = Math.floor((s.droppedTurns || 0) / CHAPTER_TURNS); c < target / CHAPTER_TURNS; c++) {
       const a = s.archive?.[c];
-      if (!a || (!a.state && !a.summary && !a.events?.length)) {
+      const archived = Boolean(a && (a.state || a.summary || a.events?.length));
+      const recap = Boolean(s.recaps?.[c]?.trim());
+      if (!archived && !recap) {
         keepFrom = c * CHAPTER_TURNS;
         break;
       }
