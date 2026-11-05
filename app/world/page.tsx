@@ -430,7 +430,7 @@ function Play() {
           apiKey: cfg.apiKey,
           model: cfg.model,
           messages: archiveAsk(world, idx + 1, transcript, base.clocks?.[idx]),
-          maxTokens: 3000,
+          maxTokens: 6000,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -450,7 +450,7 @@ function Play() {
         summary: state,
         period: String(j.period || "").trim().slice(0, 40),
         events: Array.isArray(j.events)
-          ? j.events.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 60)).slice(0, 40)
+          ? j.events.filter((x: unknown) => typeof x === "string" && x.trim()).map((x: string) => x.trim().slice(0, 100)).slice(0, 60)
           : [],
         relations: Array.isArray(j.relations)
           ? j.relations
