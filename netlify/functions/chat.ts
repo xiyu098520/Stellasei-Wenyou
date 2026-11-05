@@ -66,10 +66,26 @@ export default async function handler(req: Request) {
   // 兼容接口只认字符串，把分块拼回去
   const flat = messages.map((m) => ({ role: m.role, content: asText(m.content) }));
 
+  // OpenAI / Gemini 这类没有可打的缓存断点，缓存是全自动的前缀匹配。
+  // 能做的是给同一段对话一个固定的 prompt_cache_key，让请求始终落到同一块缓存上；
+  // key 只能由「不变的头」算出来（模型 + system + 第一条 user），掺进每轮新内容就等于每轮换 key。
+  // 之前只给 gpt 系发，Gemini 因此只有 system 那段（约 16.7K）被缓存，正文历史每轮重算。
+  const openaiish = /gpt|chatgpt|^o[1-4](-|$)|gemini/i.test(model);
+  const cacheKey = createHash("sha1")
+    .update(
+      [
+        model,
+        flat.find((m) => m.role === "system")?.content || "",
+        flat.find((m) => m.role === "user")?.content || "",
+      ].join("\u0000"),
+    )
+    .digest("hex")
+    .slice(0, 32);
+
   // 长任务（重写/生成章末档案）走流式：一次性等整段 JSON 会被网关掐成 504，
   // 这里只做转发，边收边攒在前端拼起来。
   if (body.stream) {
-    const build = (jsonMode: boolean) =>
+    const build = (jsonMode: boolean, withKey: boolean) =>
       JSON.stringify({
         model,
         messages: flat,
@@ -79,24 +95,25 @@ export default async function handler(req: Request) {
         // 档案要的是结构化的 JSON，模型进了 JSON 模式才不会自由发挥编事件
         ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
         ...(/gemini/i.test(model) ? { reasoning_effort: "medium" } : {}),
+        ...(withKey && openaiish ? { prompt_cache_key: cacheKey } : {}),
       });
-    const send = (jsonMode: boolean) =>
+    const send = (jsonMode: boolean, withKey: boolean) =>
       fetch(url, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${apiKey}`,
         },
-        body: build(jsonMode),
+        body: build(jsonMode, withKey),
         cache: "no-store",
         signal: AbortSignal.timeout(240_000),
       });
     try {
-      let res = await send(body.json !== false);
-      // 有的中转不认 response_format，400 时退回普通模式重试一次
+      let res = await send(body.json !== false, true);
+      // 有的中转不认 response_format 或 prompt_cache_key，400 时退回普通模式重试一次
       if (!res.ok && res.status === 400 && body.json !== false) {
         await res.text().catch(() => "");
-        res = await send(false);
+        res = await send(false, false);
       }
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
@@ -110,21 +127,6 @@ export default async function handler(req: Request) {
       return fail(timeout ? "上游四分钟没回话，再试一次。" : e instanceof Error ? e.message : "连不上模型", 502);
     }
   }
-
-  // OpenAI 系（gpt-*、o1~o4）没有可打的缓存断点，缓存是全自动的前缀匹配。
-  // 能做的是给同一段对话一个固定的 prompt_cache_key，让请求始终落到同一块缓存上；
-  // key 只能由「不变的头」算出来（模型 + system + 第一条 user），掺进每轮新内容就等于每轮换 key。
-  const openaiish = /gpt|chatgpt|^o[1-4](-|$)/i.test(model);
-  const cacheKey = createHash("sha1")
-    .update(
-      [
-        model,
-        flat.find((m) => m.role === "system")?.content || "",
-        flat.find((m) => m.role === "user")?.content || "",
-      ].join("\u0000"),
-    )
-    .digest("hex")
-    .slice(0, 32);
 
   // 每块记一个累计指纹：下一回合同一段文本的指纹必须一模一样，前缀缓存才可能命中。
   // 对不上 = 我们这边的 prompt 在变；对得上但 cached_tokens 还是 0 = 中转站没做缓存。
@@ -207,18 +209,18 @@ export default async function handler(req: Request) {
     messages: flat,
     temperature: 0.85,
     ...(maxTokens ? { max_tokens: maxTokens } : {}),
-    ...(openaiish ? { prompt_cache_key: cacheKey } : {}),
   };
 
   // 三档实测：low 完全不想（写出来发笨），high 会想满额度把正文挤掉，
   // 只有 medium 稳在 2100–2500、27 秒左右、正文八百字。固定 medium。
   const geminiish = /gemini/i.test(model);
 
-  async function call(withFormat: boolean, withEffort = geminiish) {
+  async function call(withFormat: boolean, withEffort = geminiish, withKey = true) {
     const payload = {
       ...base,
       ...(withEffort ? { reasoning_effort: "medium" } : {}),
       ...(withFormat ? { response_format: { type: "json_object" } } : {}),
+      ...(withKey && openaiish ? { prompt_cache_key: cacheKey } : {}),
     };
     return fetch(url, {
       method: "POST",
@@ -236,9 +238,10 @@ export default async function handler(req: Request) {
 
   try {
     let res = await call(forceJson);
-    if (!res.ok && res.status === 400 && forceJson) {
-      // 有些兼容接口不认 response_format 或 reasoning_effort，两个都去掉再要一次
-      res = await call(false, false);
+    if (!res.ok && res.status === 400) {
+      // 有些兼容接口不认 response_format、reasoning_effort 或 prompt_cache_key，全都去掉再要一次
+      await res.text().catch(() => "");
+      res = await call(false, false, false);
     }
     if (!res.ok) {
       const detail = await res.text();
