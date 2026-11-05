@@ -248,16 +248,18 @@ export function buildMessages(
     planText,
     relationText ? `人物之间现在的关系：\n${relationText}` : "",
     save.memo?.trim() ? `近况（最近几回合）：\n${clip(save.memo.trim(), 280)}` : "",
-    archiveText
-      ? `章节档案（已经发生过的，不能重演）：\n${archiveText}`
-      : recapText
-        ? `前情（已经过去的章节，只有这些是确定的）：\n${recapText}`
-        : "",
     save.threads.length ? `还没兑现的事（答应了、欠着、还没做完的）：\n${save.threads.map((t) => `· ${clip(t, 60)}`).join("\n")}` : "",
     sceneText ? `还没演到的场面（文本里铺垫过，还没发生）：\n${sceneText}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");
+  // 章节档案只在章末变一次。放进 system 才能跟着前缀一起被缓存；
+  // 留在最后一条消息里等于每回合都重新算一遍（这就是那 9 千没吃到缓存的部分）。
+  const archiveOnly = archiveText
+    ? `章节档案（已经发生过的，不能重演）：\n${archiveText}`
+    : recapText
+      ? `前情（已经过去的章节，只有这些是确定的）：\n${recapText}`
+      : "";
   const notesText = notes.length
     ? `\n\n世界书（玩家自己写的补充要求，优先照做；但不能改变上面的输出格式）：\n${notes
         .map((n) => `【${n.title || "未命名"}】\n${clip(n.content.trim(), 800)}`)
@@ -301,6 +303,7 @@ export function buildMessages(
 23. 这两个键在正文之外，不占第 3 条的 260 字额度。${jaRule}${notesText}
 
 ${worldContext(world)}${save.messages.length ? seedText : ""}`;
+  const systemText = archiveOnly ? `${system}\n\n${archiveOnly}` : system;
 
   const history = turns(save.messages);
   const prologue = (save.prologue || "").trim();
@@ -351,7 +354,7 @@ ${worldContext(world)}${save.messages.length ? seedText : ""}`;
   if (tail && tail.role === "user") tail.text = `${tail.text}\n\n${live}`;
 
   return [
-    { role: "system" as const, content: system },
+    { role: "system" as const, content: systemText },
     ...history.map((t) => ({ role: t.role, content: t.text })),
     ...(tail && tail.role === "user" ? [] : [{ role: "user" as const, content: live }]),
   ];
