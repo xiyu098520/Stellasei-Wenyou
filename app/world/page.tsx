@@ -92,6 +92,62 @@ function healThreads(s: Save): Save {
   return merged.length === s.threads.length ? s : { ...s, threads: merged };
 }
 
+// 章末档案统一走流式：一次等整段 JSON 回来会被网关掐成 504，
+// 之前自动归档失败时是静默跳过的，于是一整章没有档案、回顾页退回去显示 200 字的简报式 recap。
+async function pullArchive(
+  cfg: { baseUrl: string; apiKey: string; model: string },
+  messages: { role: string; content: string }[],
+) {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      baseUrl: cfg.baseUrl,
+      apiKey: cfg.apiKey,
+      model: cfg.model,
+      messages,
+      maxTokens: 6000,
+      stream: true,
+    }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(String((data as { error?: string } | null)?.error || `请求失败 ${res.status}`));
+  }
+  let raw = "";
+  if ((res.headers.get("content-type") || "").includes("text/event-stream") && res.body) {
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() || "";
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t.startsWith("data:")) continue;
+        const payload = t.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          const o = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] };
+          const d = o?.choices?.[0]?.delta?.content;
+          if (typeof d === "string") raw += d;
+        } catch {
+          /* 半截的 SSE 行跳过，下一行再来 */
+        }
+      }
+    }
+  } else {
+    const data = await res.json().catch(() => null);
+    raw = String((data as { content?: string } | null)?.content || "");
+  }
+  const parsed = parseArchive(raw);
+  if (!parsed) throw new Error("模型返回的档案不完整");
+  return parsed;
+}
+
 // 旧版整表替换把前几章的关系挤掉了：各章档案里还留着，启动时把缺的人补回总表。
 function healRelations(s: Save): Save {
   const known = new Set((s.relations || []).map(pairKey));
@@ -437,21 +493,15 @@ function Play() {
     const transcript = chapterTranscript(base.messages, idx, base.droppedTurns || 0);
     if (!transcript.trim()) return;
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          baseUrl: cfg.baseUrl,
-          apiKey: cfg.apiKey,
-          model: cfg.model,
-          messages: archiveAsk(world, idx + 1, transcript, base.clocks?.[idx], base.archive?.[idx - 1]?.relations),
-          maxTokens: 6000,
-        }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) return;
-      // 字段收敛统一放在 parseArchive 里，「重写本章档案」用的是同一份
-      const entry = parseArchive(String(data?.content || ""));
+      // 中转偶尔抽风（504、429、JSON 截断），自动归档也连试两次，别静默丢掉一整章
+      let entry: ReturnType<typeof parseArchive> = null;
+      for (let attempt = 1; attempt <= 2 && !entry; attempt += 1) {
+        try {
+          entry = await pullArchive(cfg, archiveAsk(world, idx + 1, transcript, base.clocks?.[idx], base.archive?.[idx - 1]?.relations));
+        } catch {
+          if (attempt === 2) return;
+        }
+      }
       if (!entry) return;
       const cur = (await getSave(worldId)) || base;
       const archive = [...(cur.archive || [])];

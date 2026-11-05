@@ -328,7 +328,7 @@ ${worldContext(world)}${save.messages.length ? seedText : ""}`;
   }
   if (opts?.closeChapter) {
     asks.push(
-      "同时，这一章到此为止：另外给出 recap，这一章发生了什么，200 字以内，写清人物做了什么、关系怎么变了、留下了什么；不抒情；chapter、memo 留空。",
+      "同时，这一章到此为止：另外给出 recap，这一章的经过，250–350 字。按时间顺序写具体发生了什么：谁在场、说了什么、做了什么、关系到了哪一步。用叙述句，写细节，不要用「彻底敲定基调」「全面压制」这类务虚概括，也不要只罗列结论；不抒情；chapter、memo 留空。",
     );
   }
   if (opts?.memo) {
