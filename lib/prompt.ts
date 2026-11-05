@@ -32,11 +32,15 @@ function gradeMap(characters: Character[]) {
 }
 
 export function worldContext(world: World, limit = 1200) {
-  // 文风块以前单独压到 450 字，结果后半截（路人和搭讪的规矩）根本没进提示词。
-  // 现在统一按 limit 截，写多长就发多长，别再偷偷砍掉。
+  // 文风块不设上限：写多长就发多长，别的块仍按 limit 收。文风里的规矩和破限要求
+  // 一旦被截，模型就只按默认写法走，前面写的那几条等于没写。
   const blocks = world.blocks
     .filter((b) => b.content.trim())
-    .map((b) => `【${b.title}】\n${clip(b.content.trim(), limit)}`)
+    .map((b) => {
+      const text = b.content.trim();
+      const body = b.title === "文风" ? text : clip(text, limit);
+      return `【${b.title}】\n${body}`;
+    })
     .join("\n\n");
 
   const characters = world.characters
