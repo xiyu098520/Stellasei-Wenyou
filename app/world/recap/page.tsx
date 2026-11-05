@@ -206,11 +206,44 @@ function Recap() {
           model: cfg.model,
           messages: archiveAsk(world, i + 1, transcript, save.clocks?.[i]),
           maxTokens: 6000,
+          // 档案要写满一整章，一次性等整段 JSON 会被网关掐成 504，这里改边收边拼
+          stream: true,
         }),
       });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(String((data as { error?: string } | null)?.error || `请求失败 ${res.status}`));
-      const entry = parseArchive(String(data?.content || ""));
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(String((data as { error?: string } | null)?.error || `请求失败 ${res.status}`));
+      }
+      let raw = "";
+      if ((res.headers.get("content-type") || "").includes("text/event-stream") && res.body) {
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "";
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() || "";
+          for (const line of lines) {
+            const t = line.trim();
+            if (!t.startsWith("data:")) continue;
+            const payload = t.slice(5).trim();
+            if (!payload || payload === "[DONE]") continue;
+            try {
+              const o = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] };
+              const d = o?.choices?.[0]?.delta?.content;
+              if (typeof d === "string") raw += d;
+            } catch {
+              /* 半截的 SSE 行跳过，下一行再来 */
+            }
+          }
+        }
+      } else {
+        const data = await res.json().catch(() => null);
+        raw = String((data as { content?: string } | null)?.content || "");
+      }
+      const entry = parseArchive(raw);
       if (!entry) throw new Error("模型返回的档案不完整");
       const cur = (await getSave(worldId)) || save;
       const archive = [...(cur.archive || [])];

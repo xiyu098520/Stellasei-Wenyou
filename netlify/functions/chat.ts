@@ -16,6 +16,7 @@ type Body = {
   messages?: InMsg[];
   maxTokens?: number;
   json?: boolean;
+  stream?: boolean;
 };
 
 const asText = (c: string | Block[] | undefined) =>
@@ -59,11 +60,46 @@ export default async function handler(req: Request) {
   // 每条请求一进来就记一笔：卡住时能分清是「根本没发出去」还是「上游一直不回」
   const t0 = Date.now();
   void logUsage("start", model, null, { msgs: messages.length, maxTokens: body.maxTokens });
-  const maxTokens = Number(body.maxTokens) > 0 ? Math.min(Math.round(Number(body.maxTokens)), 4000) : 0;
+  const maxTokens = Number(body.maxTokens) > 0 ? Math.min(Math.round(Number(body.maxTokens)), 8000) : 0;
   // 小助手要正文（JSON 头 + --- + 自由文字），不能强制整段都是 JSON
   const forceJson = body.json !== false;
   // 兼容接口只认字符串，把分块拼回去
   const flat = messages.map((m) => ({ role: m.role, content: asText(m.content) }));
+
+  // 长任务（重写/生成章末档案）走流式：一次性等整段 JSON 会被网关掐成 504，
+  // 这里只做转发，边收边攒在前端拼起来。
+  if (body.stream) {
+    const payload = {
+      model,
+      messages: flat,
+      temperature: 0.85,
+      stream: true,
+      ...(maxTokens ? { max_tokens: maxTokens } : {}),
+      ...(/gemini/i.test(model) ? { reasoning_effort: "medium" } : {}),
+    };
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(payload),
+        cache: "no-store",
+        signal: AbortSignal.timeout(240_000),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        return fail(`模型返回 ${res.status}：${detail.slice(0, 160)}`, 502);
+      }
+      return new Response(res.body, {
+        headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store" },
+      });
+    } catch (e) {
+      const timeout = e instanceof Error && e.name === "TimeoutError";
+      return fail(timeout ? "上游四分钟没回话，再试一次。" : e instanceof Error ? e.message : "连不上模型", 502);
+    }
+  }
 
   // OpenAI 系（gpt-*、o1~o4）没有可打的缓存断点，缓存是全自动的前缀匹配。
   // 能做的是给同一段对话一个固定的 prompt_cache_key，让请求始终落到同一块缓存上；
