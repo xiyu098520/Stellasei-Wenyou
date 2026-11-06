@@ -102,7 +102,6 @@ function Recap() {
       name: `${title ? `${label} · ${title}` : label}${span ? `（${span}）` : ""}`,
       recap: a?.state || a?.summary || save.recaps?.[i] || "",
       events: a?.events || [],
-      relations: a?.relations || [],
       gone: i < droppedChapters,
       last: i === total - 1,
     };
@@ -207,7 +206,7 @@ function Recap() {
             baseUrl: cfg.baseUrl,
             apiKey: cfg.apiKey,
             model: cfg.model,
-            messages: archiveAsk(world, i + 1, transcript, save.clocks?.[i], save.archive?.[i - 1]?.relations),
+            messages: archiveAsk(world, i + 1, transcript, save.clocks?.[i]),
             maxTokens: 6000,
             // 档案要写满一整章，一次性等整段 JSON 会被网关掐成 504，这里改边收边拼
             stream: true,
@@ -334,14 +333,6 @@ function Recap() {
                     {r.events.map((e, k) => (
                       <p className="trecap" key={`${r.num}-${k}`}>
                         · {e}
-                      </p>
-                    ))}
-                    {r.relations
-                      // 已归档章如果是旧版「定格」，档位可能已经回退过，不再显示，免得误导
-                      .filter((x) => !r.gone || (x.state || "").includes("→"))
-                      .map((x, k) => (
-                      <p className="trecap" key={`${r.num}-rel-${k}`}>
-                        ◇ {x.a}↔{x.b}：{x.state}
                       </p>
                     ))}
                     {r.gone ? null : (

@@ -497,7 +497,7 @@ function Play() {
       let entry: ReturnType<typeof parseArchive> = null;
       for (let attempt = 1; attempt <= 2 && !entry; attempt += 1) {
         try {
-          entry = await pullArchive(cfg, archiveAsk(world, idx + 1, transcript, base.clocks?.[idx], base.archive?.[idx - 1]?.relations));
+          entry = await pullArchive(cfg, archiveAsk(world, idx + 1, transcript, base.clocks?.[idx]));
         } catch {
           if (attempt === 2) return;
         }

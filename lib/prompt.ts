@@ -145,14 +145,7 @@ export function buildMessages(
         .filter(Boolean)
         .map((e) => `· ${clip(e, 100)}`)
         .join("\n");
-      // 只带新格式的「变化记录」（含 L档→L档）；旧档案的「定格」不带箭头，
-      // 那些是已回退的旧档位，喂进正文只会把现在的关系往回带。
-      const rel = (a.relations || [])
-        .filter((r) => r && r.state?.trim() && r.state.includes("→"))
-        .slice(0, 12)
-        .map((r) => `${r.a}↔${r.b}：${clip(r.state.trim(), 45)}`)
-        .join("；");
-      const tail = `${events ? `\n${events}` : ""}${rel ? `\n关系定格：${rel}` : ""}`;
+      const tail = events ? `\n${events}` : "";
       // 越早的章，那句状态压得越短；事件不压，一条都留着
       if (age <= 6) return `${head}\n${clip(state, 80)}${tail}`;
       if (age <= 12) return `${head}：${clip(state, 60)}${tail}`;
@@ -414,21 +407,12 @@ export function archiveAsk(
   chapterNo: number,
   transcript: string,
   from?: string,
-  prev?: { a: string; b: string; state: string }[],
 ) {
   const fromText = from?.trim() ? `\n这一章开始时的世界时间是「${from.trim()}」，period 的起点以它为准。` : "";
-  // 上一章的关系定格：不给的话，模型只能按本章互动多少反推档位，互动少就会往回落
-  const prevText = prev?.length
-    ? `\n上一章结束时的关系定格（本章档位不得低于它，只能持平或上升，不许倒退）：\n${prev
-        .filter((r) => r && r.state?.trim())
-        .slice(0, 12)
-        .map((r) => `· ${r.a}↔${r.b}：${clip(r.state, 45)}`)
-        .join("\n")}`
-    : "";
-  const system = `你在给一部连载的互动小说做章末档案。玩家刚演完第 ${chapterNo} 章。这份档案之后每一章都会被读到，而且原文会被砍掉——它是那些事唯一的记录，所以要准、要全，不要好看。${fromText}${prevText}
+  const system = `你在给一部连载的互动小说做章末档案。玩家刚演完第 ${chapterNo} 章。这份档案之后每一章都会被读到，而且原文会被砍掉——它是那些事唯一的记录，所以要准、要全，不要好看。${fromText}
 
 只输出 json，不要代码块、不要解释：
-{"title":"这一章的名字，4–8 个字","period":"这一章的时间跨度，如 9月1日—9月4日","state":"这一章停在哪一步，40 字以内","events":[""],"relations":[],"scenes":[""]}
+{"title":"这一章的名字，4–8 个字","period":"这一章的时间跨度，如 9月1日—9月4日","state":"这一章停在哪一步，40 字以内","events":[""],"scenes":[""]}
 
 规则：
 1. period 照正文里的 time 写，取这一章第一回合到最后一回合的日期；跨了几天就写区间，同一天就写那一天。日期不许省略。
@@ -437,12 +421,11 @@ export function archiveAsk(
 4. 判断标准一句话：这件事删掉，下一章会不会出问题？会，就写；不会，就不写。原文明写的细节（谁在场、谁递给谁什么、谁没说话）只在重要事件里带一句，不是给每个动作记账。
 5. 下面这几类必须单独成条，不许并进别的条目：答应下来的事与约定（谁约谁、约在哪天）、送出去或借来的东西、说出口的秘密或交底、称呼的变化（第一次叫名字、第一次用只有两个人知道的叫法）、第一次做的事（第一次单独相处、第一次牵手、第一次吃醋摆在明面上）。
 6. 环境、天气、心情不进 events；它们只在和事件绑在一起时才提一句。
-7. relations 只记**本章发生变化**的关系：亲密度档位升级、公开度变化、表白或确认关系。没变化的关系不要写，整章都没变就给 []。格式 {"a":"名字","b":"名字","state":"[L2→L3｜仍保密｜9月1日 · 因为什么]"}，state 总长不超过 45 字，必须写清从哪档到哪档、什么时候、因为什么。**档位不得低于上面给出的上一章定格**；上一章没有记录的关系，按正文如实写。
-8. scenes 最多 3 条，只写文本里确实铺垫过、还没发生的场面；没有就给 []。
-9. 人物用设定里的名字，不用「他」「那个女孩」代替。
-10. 已经发生过的事不要写成「即将发生」。
-11. 年级、年龄、身份照人物表写。正文里写错的地方不要抄进档案，宁可不提；档案会被后面每一章读到，写错一次就会一直错下去。
-12. 用简体中文。
+7. scenes 最多 3 条，只写文本里确实铺垫过、还没发生的场面；没有就给 []。
+8. 人物用设定里的名字，不用「他」「那个女孩」代替。
+9. 已经发生过的事不要写成「即将发生」。
+10. 年级、年龄、身份照人物表写。正文里写错的地方不要抄进档案，宁可不提；档案会被后面每一章读到，写错一次就会一直错下去。
+11. 用简体中文。
 
 ${worldContext(world, 1200)}`;
   return [
@@ -486,18 +469,6 @@ export function parseArchive(raw: string): ChapterArchive | null {
         .map((x) => x.trim().slice(0, 100))
         .slice(0, 60)
     : [];
-  const relations = Array.isArray(j.relations)
-    ? j.relations
-        .filter((r) => {
-          const o = r as { a?: string; b?: string; state?: string };
-          return !!o && typeof o.a === "string" && typeof o.b === "string" && typeof o.state === "string" && o.a.trim() && o.b.trim() && o.state.trim();
-        })
-        .map((r) => {
-          const o = r as { a: string; b: string; state: string };
-          return { a: o.a.trim().slice(0, 20), b: o.b.trim().slice(0, 20), state: o.state.trim().slice(0, 45) };
-        })
-        .slice(0, 12)
-    : [];
   const scenes = Array.isArray(j.scenes)
     ? j.scenes
         .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
@@ -510,7 +481,6 @@ export function parseArchive(raw: string): ChapterArchive | null {
     summary: state,
     period: String(j.period || "").trim().slice(0, 40),
     events,
-    relations,
     scenes,
   };
 }
