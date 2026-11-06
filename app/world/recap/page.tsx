@@ -167,24 +167,29 @@ function Recap() {
     await putSave(next);
   }
 
+  // 把一批消息拼成可读的原文：玩家写的那句标出来，演出按段排下去
+  function renderHistory(messages: Message[]) {
+    return messages
+      .map((m) => {
+        if (m.role === "user") return `玩家：${m.text}`;
+        return (m.segments || [])
+          .map((s) => (s.type === "line" ? `${s.speaker || "某人"}${s.via ? `（${s.via}）` : ""}：「${s.text}」` : s.text))
+          .join("\n");
+      })
+      .filter((t) => t.trim())
+      .join("\n\n");
+  }
+
   // 把某一章的原文捞出来喂给档案模型。回合号从被砍的地方接着数，跟世界页保持一致。
   function chapterTranscript(messages: Message[], idx: number, base = 0) {
     let turn = base;
-    const out: string[] = [];
+    const out: Message[] = [];
     messages.forEach((m) => {
       if (m.role === "user") turn += 1;
       const at = Math.ceil(Math.max(turn, 1) / CHAPTER_TURNS) - 1;
-      if (at !== idx) return;
-      if (m.role === "user") {
-        out.push(`玩家：${m.text}`);
-      } else {
-        const body = (m.segments || [])
-          .map((s) => (s.type === "line" ? `${s.speaker || "某人"}${s.via ? `（${s.via}）` : ""}：「${s.text}」` : s.text))
-          .join("\n");
-        if (body.trim()) out.push(body);
-      }
+      if (at === idx) out.push(m);
     });
-    return out.join("\n\n");
+    return renderHistory(out);
   }
 
   // 用那一章的原文重新生成档案，覆盖旧的那一份；recap 与标题不动，只把档案写厚
@@ -362,6 +367,13 @@ function Recap() {
                           )}
                         </div>
                       ))
+                    ) : r.gone && save.buried?.[r.num - 1]?.length ? (
+                      <details className="turnrow">
+                        <summary>看原文（{save.buried[r.num - 1].length} 条，只读，不再喂给模型）</summary>
+                        <p className="trecap" style={{ whiteSpace: "pre-wrap" }}>
+                          {renderHistory(save.buried[r.num - 1])}
+                        </p>
+                      </details>
                     ) : (
                       <div className="blank">{r.gone ? "这一章已归档，原文不再保留。" : "这一章还没走。"}</div>
                     )}

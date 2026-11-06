@@ -122,6 +122,8 @@ export type Save = {
   clocks?: string[];
   // 已经整章砍掉的回合数。章号还是按「总回合 ÷ 24」算，所以必须记这一笔
   droppedTurns?: number;
+  // 砍掉的原文按章存着：只给玩家回看，不进提示词、不许改。索引就是章号
+  buried?: Message[][];
   // 现在的舞台，主角一进游戏就能看见自己在哪、身边有谁
   stage?: Stage;
   threads: string[];

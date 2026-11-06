@@ -540,15 +540,23 @@ function Play() {
     let turn = s.droppedTurns || 0;
     let dropping = true;
     const messages: Message[] = [];
+    // 砍掉的原文不删，按章收进 buried：回顾页还能看，但 buildMessages 只读 messages，不会再喂给模型
+    const buried = (s.buried || []).slice();
     for (const m of s.messages) {
       if (m.role === "user") {
         turn += 1;
         if (turn > keepFrom) dropping = false;
       }
-      if (!dropping) messages.push(m);
+      if (!dropping) {
+        messages.push(m);
+      } else {
+        const ch = Math.ceil(Math.max(turn, 1) / CHAPTER_TURNS) - 1;
+        if (!buried[ch]) buried[ch] = [];
+        buried[ch].push(m);
+      }
     }
     if (messages.length === s.messages.length) return s;
-    return { ...s, messages, droppedTurns: keepFrom };
+    return { ...s, messages, buried, droppedTurns: keepFrom };
   }
 
   async function generate(nextSave: Save, opening?: string, extra?: string) {
