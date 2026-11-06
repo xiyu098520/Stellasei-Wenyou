@@ -735,11 +735,12 @@ function Play() {
       (settings.voice.lang === "ja" ? x?.ja?.trim() || "" : "") || x?.text || "";
     const line = spoken(seg);
     const say = tone ? `${tone} ${line}` : line;
-    // 单句合成容易被念平，把前后两句一起递过去，模型才知道这句在什么气氛里
+    // 单句合成容易被念平，把前一句递过去做上下文就够了。
+    // 下一句不再递：v3/v4 会顺着 next_text 往下念，偶尔把下一段的台词一起念出来。
     const prev = v3 && idx > 0 ? spoken(segs[idx - 1]).slice(-160) : "";
-    const next = v3 && idx >= 0 ? spoken(segs[idx + 1]).slice(0, 160) : "";
-    // 合成参数一样、文字一样、上下文一样，就复用同一份音频
-    const clipKey = [voiceId, settings.voice.model, settings.voice.speed ?? "", prev, say, next].join("|");
+    // 合成参数一样、文字一样、上下文一样，就复用同一份音频。
+    // next 不再参与缓存键，旧的（可能多念了下一句的）音频会自然失效、重新合成一次。
+    const clipKey = [voiceId, settings.voice.model, settings.voice.speed ?? "", prev, say].join("|");
     const known = urlCache.current.get(clipKey);
     if (known) {
       const blob = await getVoiceClip(clipKey).catch(() => undefined);
@@ -761,7 +762,6 @@ function Play() {
         model: settings.voice.model,
         speed: settings.voice.speed,
         previousText: prev,
-        nextText: next,
       }),
     });
     if (!res.ok) {
