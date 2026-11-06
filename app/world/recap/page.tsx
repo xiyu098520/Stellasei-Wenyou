@@ -368,12 +368,11 @@ function Recap() {
                         </div>
                       ))
                     ) : r.gone && save.buried?.[r.num - 1]?.length ? (
-                      <details className="turnrow">
-                        <summary>看原文（{save.buried[r.num - 1].length} 条，只读，不再喂给模型）</summary>
-                        <p className="trecap" style={{ whiteSpace: "pre-wrap" }}>
-                          {renderHistory(save.buried[r.num - 1])}
-                        </p>
-                      </details>
+                      <Link className="turnrow toward" href={`/world/archive/?id=${worldId}&ch=${r.num}`}>
+                        <em>▸</em>
+                        <p>看原文（{save.buried[r.num - 1].length} 条，只读）</p>
+                        <span>打开</span>
+                      </Link>
                     ) : (
                       <div className="blank">{r.gone ? "这一章已归档，原文不再保留。" : "这一章还没走。"}</div>
                     )}
