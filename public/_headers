@@ -1,0 +1,8 @@
+# Cloudflare Pages 的缓存头（Netlify 用 netlify.toml，两者互不影响）
+# 带哈希的构建产物内容永远不变，让浏览器长期缓存
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# 字体切片文件名固定、内容不变，必须让浏览器长期缓存
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
