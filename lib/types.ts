@@ -86,7 +86,7 @@ export type Message = {
 export type Relation = {
   a: string;
   b: string;
-  // 亲密度档位 L0–L6：0 陌生、1 眼熟、2 认出、3 有兴趣、4 在意、5 动心、6 在一起
+  // 亲密度档位 L0–L5：初识、熟悉、感到兴趣、确认自己心意、追求／布局／引导、私下恋情／队内公开
   level?: number;
   state: string;
 };

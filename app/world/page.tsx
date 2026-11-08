@@ -268,7 +268,7 @@ function parseReply(raw: string): ChatReply {
             a: String(r.a || "主角").trim().slice(0, 20),
             b: String(r.b || "？").trim().slice(0, 20),
             level:
-              typeof r.level === "number" && r.level >= 0 && r.level <= 6
+              typeof r.level === "number" && r.level >= 0 && r.level <= 5
                 ? Math.round(r.level)
                 : undefined,
             state: String(r.state || "").trim().slice(0, 60),
