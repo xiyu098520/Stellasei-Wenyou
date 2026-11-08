@@ -391,7 +391,8 @@ function Recap() {
           {save.relations?.length ? (
             save.relations.map((r, i) => (
               <div className="debt" key={`${r.a}-${r.b}-${i}`}>
-                {r.a} ↔ {r.b}：{r.state}
+                {r.a} ↔ {r.b}：{typeof r.level === "number" ? `L${r.level} ` : ""}
+                {r.state}
               </div>
             ))
           ) : (
