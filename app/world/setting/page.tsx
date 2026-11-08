@@ -223,6 +223,8 @@ function Setting() {
           const msgs = (j.msgs as typeof aiMsgs).slice(-40).map((m) =>
             m.role === "assistant" && !m.write ? { ...m, text: tidyHistory(m.text) } : m,
           );
+          // 从 localStorage 恢复上一次的会话：初始化时读会和 SSR 的空白对不上，只能放在 effect 里
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setAiMsgs(msgs);
         }
         if (j?.done && typeof j.done === "object") setAiDone(j.done as Record<number, boolean>);

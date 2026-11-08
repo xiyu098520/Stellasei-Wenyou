@@ -583,6 +583,8 @@ function Play() {
         await putSave(trimmed);
       }
       const turns = turnsOf(nextSave);
+      // 序章粘进来就是第一回合的正文，不再让模型重写一遍场面
+      const prologueScene = turns === 0 ? (nextSave.prologue || "").trim() : "";
       const nameAt = chapterNo(nextSave) - 1;
       const closeAt = Math.max(0, Math.ceil(turns / CHAPTER_TURNS) - 1);
       const nameChapter =
@@ -602,6 +604,7 @@ function Play() {
             memo: memoAt,
             extra,
             ja: settings.voice.lang === "ja",
+            prologueScene: !!prologueScene,
           }),
           // 1600 是实测唯一能把思考压在两千以内的额度：这个中转把思考也算进输出额度，
           // 额度给多大它就想多久（tiered 两次都是想到快满才停，正文被截断），所以不放开。
@@ -611,8 +614,17 @@ function Play() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "请求失败");
       const reply = parseReply(String(data.content || ""));
+      // 序章原文直接当第一回合的正文：按行切段，模型不再重写这一场
+      const prologueSegs: Segment[] = prologueScene
+        ? prologueScene
+            .split(/\r?\n/)
+            .map((l) => l.trim())
+            .filter(Boolean)
+            .map((text) => ({ type: "narration", text }))
+        : [];
+      const segments = [...prologueSegs, ...reply.segments];
       // 正文一段都没救回来：不要存一条空回复，直接把错误摆出来让玩家再发
-      if (!reply.segments.length) throw new Error("这次模型没写出正文，再发一次。");
+      if (!segments.length) throw new Error("这次模型没写出正文，再发一次。");
       // 设想里只留设定表上真有的人名，模型乱编的名字直接丢掉
       const roster = new Set(w.characters.map((c) => c.name.trim()));
       const plan = reply.plan
@@ -621,8 +633,8 @@ function Play() {
       const msg: Message = {
         id: newId(),
         role: "assistant",
-        text: reply.segments.map((s) => s.text).join("\n"),
-        segments: reply.segments,
+        text: segments.map((s) => s.text).join("\n"),
+        segments,
         options: reply.options,
         stage: reply.stage,
         aside: reply.aside,
@@ -1129,7 +1141,7 @@ function Play() {
               rows={5}
               className="prologue"
               value={prologue}
-              placeholder="序章（可留空）：第一幕的背景，写多少都行。比如把你怎么拿到通知书、怎么走进校门、当时是什么心情全写在这里，模型照它铺开场，不会替你把你没写的动作补上。"
+              placeholder="序章（可留空）：粘进来就是第一回合的正文，原样显示，模型不重写也不往前推，从最后一句开始演。"
               onChange={(e) => setPrologue(e.target.value)}
               onInput={(e) => fitTextarea(e.currentTarget, 220)}
               onPaste={() => fitTextarea(prologueRef.current, 220)}
