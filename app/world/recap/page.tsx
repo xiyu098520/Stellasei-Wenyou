@@ -18,6 +18,10 @@ import {
 } from "@/lib/types";
 
 const CN = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+// 亲密度六档的显示名，跟世界设定里的阶段一一对应
+const LEVELS = ["初识", "熟悉", "感到兴趣", "确认心意", "追求／布局／引导", "在一起"];
+const levelText = (lv?: number) =>
+  typeof lv === "number" && LEVELS[lv] ? `L${lv} ${LEVELS[lv]}` : "";
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "…" : s);
 
 export default function RecapPage() {
@@ -391,7 +395,7 @@ function Recap() {
           {save.relations?.length ? (
             save.relations.map((r, i) => (
               <div className="debt" key={`${r.a}-${r.b}-${i}`}>
-                {r.a} ↔ {r.b}：{typeof r.level === "number" ? `L${r.level} ` : ""}
+                {r.a} ↔ {r.b}：{levelText(r.level) ? `${levelText(r.level)} · ` : ""}
                 {r.state}
               </div>
             ))
