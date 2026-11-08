@@ -50,7 +50,12 @@ function mergeRelations(old: Relation[], delta: Relation[]): Relation[] {
   const next = [...old];
   delta.forEach((d) => {
     const i = next.findIndex((o) => pairKey(o) === pairKey(d));
-    if (i >= 0) next[i] = { ...next[i], state: d.state };
+    if (i >= 0)
+      next[i] = {
+        ...next[i],
+        level: d.level ?? next[i].level,
+        state: d.state,
+      };
     else next.push(d);
   });
   return next;
@@ -262,6 +267,10 @@ function parseReply(raw: string): ChatReply {
           .map((r: Relation) => ({
             a: String(r.a || "主角").trim().slice(0, 20),
             b: String(r.b || "？").trim().slice(0, 20),
+            level:
+              typeof r.level === "number" && r.level >= 0 && r.level <= 6
+                ? Math.round(r.level)
+                : undefined,
             state: String(r.state || "").trim().slice(0, 60),
           }))
           .filter((r: Relation) => r.state)
