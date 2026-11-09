@@ -18,8 +18,8 @@ import {
 } from "@/lib/types";
 
 const CN = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
-// 亲密度六档的显示名，跟世界设定里的阶段一一对应
-const LEVELS = ["初识", "熟悉", "感到兴趣", "确认心意", "追求／布局／引导", "在一起"];
+// 亲密度五档的显示名，记的是「你走到哪一步」，跟世界设定里的阶段一一对应
+const LEVELS = ["只当工作", "动摇", "承认", "越界", "在一起"];
 const levelText = (lv?: number) =>
   typeof lv === "number" && LEVELS[lv] ? `L${lv} ${LEVELS[lv]}` : "";
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "…" : s);

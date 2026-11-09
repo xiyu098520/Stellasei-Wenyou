@@ -86,7 +86,7 @@ export type Message = {
 export type Relation = {
   a: string;
   b: string;
-  // 亲密度档位 L0–L5：初识、熟悉、感到兴趣、确认自己心意、追求／布局／引导、私下恋情／队内公开
+  // 亲密度档位 L0–L4：只当工作、动摇、承认、越界、在一起（记的是你走到哪一步）
   level?: number;
   state: string;
 };
