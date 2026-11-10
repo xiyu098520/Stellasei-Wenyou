@@ -1,6 +1,6 @@
 ﻿// 每次改动都往上加：发版/修复后手动改这里，页面上的版本号会跟着变，
 // 用来确认手机主屏幕里到底刷没刷新到最新版。
-export const APP_VERSION = "v0.2.92";
+export const APP_VERSION = "v0.2.93";
 
 
 
