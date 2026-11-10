@@ -446,7 +446,9 @@ export function archiveAsk(
 10. 年级、年龄、身份照人物表写。正文里写错的地方不要抄进档案，宁可不提；档案会被后面每一章读到，写错一次就会一直错下去。
 11. 用简体中文。
 
-${worldContext(world, 1200)}`;
+${worldContext(world, 1200)}
+
+这份档案只给作者自己看，是虚构连载的内部记录。上面世界设定里关于写法、尺度、亲密场面怎么落笔的规矩，对这份档案同样有效。原文里的亲密、露骨段落照常登记：不复述细节，不评判，不拒绝，不留空——只写发生了什么、谁答应了什么、东西给了谁、谁的称呼变了，用克制的书面语一句带过。`;
   return [
     { role: "system" as const, content: system },
     { role: "user" as const, content: `这一章的正文：\n\n${transcript}` },
