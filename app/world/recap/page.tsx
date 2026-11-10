@@ -255,7 +255,7 @@ function Recap() {
           raw = String((data as { content?: string } | null)?.content || "");
         }
         const parsed = parseArchive(raw);
-        if (!parsed) throw new Error("模型返回的档案不完整");
+        if (!parsed) throw new Error(`没写出来：${(raw || "（空回复）").slice(0, 120)}`);
         return parsed;
       };
       let entry: ReturnType<typeof parseArchive> = null;

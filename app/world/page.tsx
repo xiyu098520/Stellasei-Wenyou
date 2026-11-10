@@ -149,7 +149,8 @@ async function pullArchive(
     raw = String((data as { content?: string } | null)?.content || "");
   }
   const parsed = parseArchive(raw);
-  if (!parsed) throw new Error("模型返回的档案不完整");
+  // 失败时把模型的原话带出来：不然拒答、截断、JSON 走形全被吞成一句「不完整」，看不出原因
+  if (!parsed) throw new Error(`档案没写成：${(raw || "（空回复）").slice(0, 120)}`);
   return parsed;
 }
 
@@ -507,8 +508,12 @@ function Play() {
       for (let attempt = 1; attempt <= 2 && !entry; attempt += 1) {
         try {
           entry = await pullArchive(cfg, archiveAsk(world, idx + 1, transcript, base.clocks?.[idx]));
-        } catch {
-          if (attempt === 2) return;
+        } catch (err) {
+          // 自动归档失败不拦正片，但要在控制台留下原因，方便判断是被审核挡了还是请求挂了
+          if (attempt === 2) {
+            console.warn("[档案] 第", idx + 1, "章写失败：", (err as Error).message);
+            return;
+          }
         }
       }
       if (!entry) return;
