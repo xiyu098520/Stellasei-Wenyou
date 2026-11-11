@@ -308,7 +308,9 @@ export function buildMessages(
 ${worldContext(world)}${save.messages.length ? seedText : ""}`;
   const systemText = archiveOnly ? `${system}\n\n${archiveOnly}` : system;
 
-  const history = turns(save.messages);
+  // 历史不设上限的时候，演到五六章就是十几万字一起发，上游按 token 计费限速，直接 429。
+  // 给个上限：超了就从最早的那一章整章丢，正在演的这章永远留着；丢掉的章还有档案兜着。
+  const history = turns(save.messages, 45000);
   const prologue = (save.prologue || "").trim();
   const base = save.messages.length
     ? "接着往下演。先用一段 action 把玩家这一回合的输入重新演一遍：保留他做的动作、说的意思，原话最多原样出现一次，别整句复读；剩下的用语气、停顿、视线、手的落点、两个人的距离写出来，写得比原话细、比原话好看，但不加他没做的事、不改他的意思。写完这段，再写在场的人的反应、招呼和场面变化：反应要先接住刚才那一下（看回来、呼吸乱半拍、话停在半句、手停在半空），再往下走。不要一开头先把在场的人挨个扫一遍再讲故事，谁的戏都得排在玩家的动作之后。"
