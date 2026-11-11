@@ -54,6 +54,8 @@ function Recap() {
   // 「重写本章档案」：一次只跑一章，结果就近显示在那一章下面
   const [busyCh, setBusyCh] = useState<number | null>(null);
   const [note, setNote] = useState<{ i: number; text: string } | null>(null);
+  // 章节列表整块先收起来：十五六章的名字摆一屏，正文都被挤下去了
+  const [listOpen, setListOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -158,9 +160,12 @@ function Recap() {
     setOpenCh(opened.includes(num) ? opened.filter((x) => x !== num) : [...opened, num]);
   }
 
-  // 十几章全摊开太长，给一个一次收干净的口子
+  // 章节列表整块先收起来：十五六章的名字摆一屏，正文都被挤下去了
   function toggleAll() {
-    setOpenCh(opened.length ? [] : rows.map((r) => r.num));
+    const next = !listOpen;
+    setListOpen(next);
+    // 收起来时把展开过的章也一并收掉，下次点开是干净的一列
+    if (!next) setOpenCh([]);
   }
 
   async function revert(index: number) {
@@ -326,11 +331,12 @@ function Recap() {
             <span>
               {back || `${rows.length} 章`}
               <button type="button" className="foldall" onClick={toggleAll}>
-                {opened.length ? "全部收起" : "全部展开"}
+                {listOpen ? "收起" : "展开"}
               </button>
             </span>
           </div>
-          {rows.map((r) => {
+          {listOpen &&
+            rows.map((r) => {
             const open = opened.includes(r.num);
             const list = turnsIn(r.num);
             return (
