@@ -373,6 +373,7 @@ function Play() {
   const [presets, setPresets] = useState<ModelPreset[]>([]);
   const [modelNow, setModelNow] = useState("");
   const [modelOpen, setModelOpen] = useState(false);
+  const modelRef = useRef<HTMLDivElement>(null);
   // 三个选项照常让模型吐，只是想看剧情时可以收起来；这个偏好记在本机
   const [hideOptions, setHideOptions] = useState(false);
   const [error, setError] = useState("");
@@ -429,6 +430,16 @@ function Play() {
     setModelOpen(false);
     setToast(`换到 ${p.name}`);
   }
+
+  // 点到别处就把列表收起来，别一直挂在那儿挡着正文
+  useEffect(() => {
+    if (!modelOpen) return;
+    const away = (e: MouseEvent) => {
+      if (!modelRef.current?.contains(e.target as Node)) setModelOpen(false);
+    };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [modelOpen]);
 
   function toggleOptions() {
     const next = !hideOptions;
@@ -978,7 +989,7 @@ function Play() {
         <Link href={`/world/recap/?id=${world.id}`}>回顾 ›</Link>
       </div>
       {presets.length > 0 && (
-        <div className="mpick">
+        <div className="mpick" ref={modelRef}>
           <button type="button" className="mtag" onClick={() => setModelOpen(!modelOpen)}>
             模型：{presets.find((p) => p.model === modelNow)?.name || modelNow || "未设"} ▾
           </button>
