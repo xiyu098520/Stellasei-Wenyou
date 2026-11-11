@@ -456,6 +456,8 @@ a { color: inherit; text-decoration: none; }
 .tochead b { font-size: 11.5px; font-weight: 500; letter-spacing: .2em; color: var(--ink-2); }
 .tochead b::before { content: ""; display: inline-block; width: 4px; height: 4px; background: var(--seal); margin-right: 7px; vertical-align: 2px; }
 .tochead span { margin-left: auto; font-family: var(--mono); font-size: 9px; letter-spacing: .1em; color: var(--ink-4); }
+/* 一次收干净：章多的时候不用一个个点 */
+.foldall { margin-left: 12px; padding: 0; background: none; border: none; font: inherit; letter-spacing: .16em; color: var(--seal); }
 .trow { display: flex; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
 .trow b { font-size: 13px; font-weight: 500; letter-spacing: .1em; color: var(--ink-2); }
 .trow em { font-style: normal; font-size: 10px; letter-spacing: .04em; color: var(--ink-4); }

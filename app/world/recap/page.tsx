@@ -158,6 +158,11 @@ function Recap() {
     setOpenCh(opened.includes(num) ? opened.filter((x) => x !== num) : [...opened, num]);
   }
 
+  // 十几章全摊开太长，给一个一次收干净的口子
+  function toggleAll() {
+    setOpenCh(opened.length ? [] : rows.map((r) => r.num));
+  }
+
   async function revert(index: number) {
     if (!save) return;
     const next: Save = {
@@ -318,7 +323,12 @@ function Recap() {
         <div className="toc">
           <div className="tochead">
             <b>章节</b>
-            <span>{back || `${rows.length} 章`}</span>
+            <span>
+              {back || `${rows.length} 章`}
+              <button type="button" className="foldall" onClick={toggleAll}>
+                {opened.length ? "全部收起" : "全部展开"}
+              </button>
+            </span>
           </div>
           {rows.map((r) => {
             const open = opened.includes(r.num);
