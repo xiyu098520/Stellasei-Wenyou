@@ -429,6 +429,7 @@ function Play() {
     setModelNow(p.model);
     setModelOpen(false);
     setToast(`换到 ${p.name}`);
+    window.setTimeout(() => setToast(""), 1800);
   }
 
   // 点到别处就把列表收起来，别一直挂在那儿挡着正文
