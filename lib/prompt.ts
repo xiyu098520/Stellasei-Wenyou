@@ -77,9 +77,9 @@ export function worldContext(world: World, limit = 1200) {
 // 缓存按前缀命中：旧回合的块边界一直存在，断点才读得到。
 // 所以超出上限时不能按字数滑动——那样每回合都要从头上切一两条，前缀一挪，整段历史缓存全废、全价重算。
 // 改成整章整章地丢：只在换章那一刻开头顶一次，其余回合前缀一字不动，缓存一直读得到。
-// 先不设历史上限：整章整章地丢这套逻辑留着，limit 传进来才生效。
-// 不传就全带，用来观察上下文涨到多少模型开始失智。
-function turns(messages: Message[], limit = Number.POSITIVE_INFINITY) {
+// 原文按「章」留，不按字数留：只带最近两章（上一章 + 正在演的这章），
+// 更早的整章丢掉，交给章节档案兜着。换章那一刻才动一次前缀，缓存照样命中。
+function turns(messages: Message[], keepChapters = 2) {
   const textOf = (m: Message) =>
     m.role === "user"
       ? `玩家意图：${m.text}`
@@ -93,20 +93,10 @@ function turns(messages: Message[], limit = Number.POSITIVE_INFINITY) {
     if (m.role === "user") turn += 1;
     return Math.ceil(Math.max(turn, 1) / CHAPTER_TURNS) - 1;
   });
-  let total = rows.reduce((n, r) => n + r.text.length, 0);
   const now = chapterOf.length ? chapterOf[chapterOf.length - 1] : 0;
+  // 只留最近 keepChapters 章：比这更早的整章砍掉
   let start = 0;
-  // 超了就丢最早的那一章；正在演的这章一章都不丢，再长也留着
-  while (total > limit && start < messages.length) {
-    const ch = chapterOf[start];
-    if (ch >= now) break;
-    let end = start;
-    while (end < messages.length && chapterOf[end] === ch) {
-      total -= rows[end].text.length;
-      end += 1;
-    }
-    start = end;
-  }
+  while (start < messages.length && chapterOf[start] < now - (keepChapters - 1)) start += 1;
   const parts: { role: "user" | "assistant"; text: string }[] = [];
   for (let i = start; i < rows.length; i++) {
     const r = rows[i];
@@ -133,9 +123,16 @@ export function buildMessages(
   const notes = (world.notes || []).filter((n) => n.content.trim());
   // 章节档案永不丢弃：原文砍掉之后，它就是唯一还记得那些事的东西。
   // 所以事件一条都不能删，每条都带日期——玩家在第 20 章提起第 1 章的某一天，得对得上。
-  const chapters = (save.archive || []).filter((a) => a && (a.state || a.summary || "").trim());
+  const chapters = (save.archive || [])
+    .map((a, i) => ({ a, i }))
+    .filter(({ a }) => a && (a.state || a.summary || "").trim());
+  // 现在演到第几章（0 起算）。原文只带最近两章，更早的章才轮到档案出场，
+  // 上一章的原文还在，就不必再把它的档案也塞一遍
+  const nowTurn = save.messages.filter((m) => m.role === "user").length;
+  const nowCh = Math.ceil(Math.max(nowTurn, 1) / CHAPTER_TURNS) - 1;
   const archiveText = chapters
-    .map((a, i) => {
+    .filter(({ i }) => i < nowCh - 1)
+    .map(({ a, i }) => {
       const age = chapters.length - i;
       const name = a.title?.trim() ? ` · ${a.title.trim()}` : "";
       const span = a.period?.trim() ? `（${a.period.trim()}）` : "";
@@ -308,9 +305,8 @@ export function buildMessages(
 ${worldContext(world)}${save.messages.length ? seedText : ""}`;
   const systemText = archiveOnly ? `${system}\n\n${archiveOnly}` : system;
 
-  // 历史不设上限的时候，演到五六章就是十几万字一起发，上游按 token 计费限速，直接 429。
-  // 给个上限：超了就从最早的那一章整章丢，正在演的这章永远留着；丢掉的章还有档案兜着。
-  const history = turns(save.messages, 45000);
+  // 原文只带最近两章，更早的靠上面的章节档案
+  const history = turns(save.messages);
   const prologue = (save.prologue || "").trim();
   const base = save.messages.length
     ? "接着往下演。先用一段 action 把玩家这一回合的输入重新演一遍：保留他做的动作、说的意思，原话最多原样出现一次，别整句复读；剩下的用语气、停顿、视线、手的落点、两个人的距离写出来，写得比原话细、比原话好看，但不加他没做的事、不改他的意思。写完这段，再写在场的人的反应、招呼和场面变化：反应要先接住刚才那一下（看回来、呼吸乱半拍、话停在半句、手停在半空），再往下走。不要一开头先把在场的人挨个扫一遍再讲故事，谁的戏都得排在玩家的动作之后。"
