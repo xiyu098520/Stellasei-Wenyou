@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import WorldTabs from "@/components/WorldTabs";
 import { getSave, getVoiceClip, getWorld, putFavorite, putSave, putVoiceClip } from "@/lib/db";
 import { archiveAsk, buildMessages, characterByName, parseArchive } from "@/lib/prompt";
-import { loadSettings } from "@/lib/settings";
+import { loadSettings, saveSettings, type ModelPreset } from "@/lib/settings";
 import { pullJson, pullLoose, pullSegments, pullStrings } from "@/lib/json";
 import {
   chapterLabel,
@@ -369,6 +369,10 @@ function Play() {
   // 原本发出去的那句，重写时也能改：打错意思、说偏了，回到这一刻重说。
   const [regenText, setRegenText] = useState("");
   const [busy, setBusy] = useState(false);
+  // 正文用哪套配置：设置页存下的预设，这里一键切，不必回去重填地址和 Key
+  const [presets, setPresets] = useState<ModelPreset[]>([]);
+  const [modelNow, setModelNow] = useState("");
+  const [modelOpen, setModelOpen] = useState(false);
   // 三个选项照常让模型吐，只是想看剧情时可以收起来；这个偏好记在本机
   const [hideOptions, setHideOptions] = useState(false);
   const [error, setError] = useState("");
@@ -401,6 +405,30 @@ function Play() {
   useEffect(() => {
     setHideOptions(localStorage.getItem("wenyou.hideOptions") === "1");
   }, []);
+
+  // 打开页面、以及回设置页改完之后，把当前配置和预设重新读一遍
+  useEffect(() => {
+    const read = () => {
+      const st = loadSettings();
+      setPresets(st.presets || []);
+      setModelNow(st.text.model);
+    };
+    read();
+    window.addEventListener("wenyou:settings", read);
+    return () => window.removeEventListener("wenyou:settings", read);
+  }, []);
+
+  // 切预设：地址、模型、Key 一起换，下一回合出字就用新的
+  function applyPreset(p: ModelPreset) {
+    const st = loadSettings();
+    saveSettings({
+      ...st,
+      text: { ...st.text, baseUrl: p.baseUrl, model: p.model, apiKey: p.apiKey },
+    });
+    setModelNow(p.model);
+    setModelOpen(false);
+    setToast(`换到 ${p.name}`);
+  }
 
   function toggleOptions() {
     const next = !hideOptions;
@@ -949,6 +977,29 @@ function Play() {
         )}
         <Link href={`/world/recap/?id=${world.id}`}>回顾 ›</Link>
       </div>
+      {presets.length > 0 && (
+        <div className="mpick">
+          <button type="button" className="mtag" onClick={() => setModelOpen(!modelOpen)}>
+            模型：{presets.find((p) => p.model === modelNow)?.name || modelNow || "未设"} ▾
+          </button>
+          {modelOpen && (
+            <div className="mpop">
+              {presets.map((p) => (
+                <button
+                  type="button"
+                  key={p.id}
+                  className={p.model === modelNow ? "on" : ""}
+                  onClick={() => applyPreset(p)}
+                  title={`${p.baseUrl}｜${p.model}`}
+                >
+                  <b>{p.name}</b>
+                  <em>{p.model}</em>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {regenOpen && hasMessages && (
         <div className="regenbox">
           <label className="regenfield">

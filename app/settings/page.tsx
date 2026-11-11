@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { loadSettings, saveSettings, Settings } from "@/lib/settings";
+import { loadSettings, saveSettings, Settings, ModelPreset } from "@/lib/settings";
+import { newId } from "@/lib/types";
 import { APP_VERSION } from "@/lib/version";
 
 type Status = { kind: "idle" | "busy" | "ok" | "bad"; text: string };
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const [vmodels, setVmodels] = useState<{ id: string; name: string }[]>([]);
   const [fetching, setFetching] = useState<"" | "text" | "assistant" | "voice" | "vomodel">("");
   const [fetchErr, setFetchErr] = useState<{ at: string; msg: string } | null>(null);
+  const [presetName, setPresetName] = useState("");
 
   useEffect(() => {
     setS(loadSettings());
@@ -30,6 +32,46 @@ export default function SettingsPage() {
     setS(next);
     saveSettings(next);
     setStatus({ kind: "idle", text: "" });
+  }
+
+  // 把眼下这套地址 + 模型 + Key 存成一个名字；同名就覆盖
+  function savePreset() {
+    if (!s) return;
+    const name = presetName.trim() || s.text.model.trim();
+    if (!name) return;
+    const list = [...(s.presets || [])];
+    const at = list.findIndex((p) => p.name === name);
+    const item: ModelPreset = {
+      id: list[at]?.id || newId(),
+      name,
+      baseUrl: s.text.baseUrl,
+      model: s.text.model,
+      apiKey: s.text.apiKey,
+    };
+    if (at >= 0) list[at] = item;
+    else list.push(item);
+    const next: Settings = { ...s, presets: list };
+    setS(next);
+    saveSettings(next);
+    setPresetName("");
+  }
+
+  function applyPreset(p: ModelPreset) {
+    if (!s) return;
+    const next: Settings = {
+      ...s,
+      text: { ...s.text, baseUrl: p.baseUrl, model: p.model, apiKey: p.apiKey },
+    };
+    setS(next);
+    saveSettings(next);
+    setStatus({ kind: "idle", text: "" });
+  }
+
+  function dropPreset(id: string) {
+    if (!s) return;
+    const next: Settings = { ...s, presets: (s.presets || []).filter((p) => p.id !== id) };
+    setS(next);
+    saveSettings(next);
   }
 
   function updateAssistant(patch: Partial<Settings["assistant"]>) {
@@ -338,6 +380,42 @@ export default function SettingsPage() {
             测一下
           </button>
         </div>
+        <div className="frow">
+          <span className="k">预设</span>
+          <input
+            className="v"
+            value={presetName}
+            placeholder="给这套配置起个名，如「好文笔」"
+            onChange={(e) => setPresetName(e.target.value)}
+          />
+          <button type="button" onClick={savePreset}>
+            存下
+          </button>
+        </div>
+        {(s.presets?.length ?? 0) > 0 && (
+          <div className="mchips">
+            {s.presets!.map((p) => (
+              <button
+                type="button"
+                key={p.id}
+                className={p.model === s.text.model && p.baseUrl === s.text.baseUrl ? "on" : ""}
+                onClick={() => applyPreset(p)}
+                title={`${p.baseUrl}｜${p.model}`}
+              >
+                {p.name}
+                <i
+                  className="x"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dropPreset(p.id);
+                  }}
+                >
+                  ×
+                </i>
+              </button>
+            ))}
+          </div>
+        )}
         <p className="sec-note">开演时，演这个世界的用它。</p>
       </section>
 

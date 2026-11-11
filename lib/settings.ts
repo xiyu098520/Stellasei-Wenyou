@@ -7,8 +7,18 @@ export type TextProvider = {
   apiKey: string;
 };
 
+// 存下来的整套配置：地址、模型、Key 一起切，省得每回重填
+export type ModelPreset = {
+  id: string;
+  name: string;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+};
+
 export type Settings = {
   text: TextProvider;
+  presets?: ModelPreset[];
   assistant: TextProvider;
   voice: {
     provider: string;
@@ -69,6 +79,7 @@ export function loadSettings(): Settings {
     const parsed = JSON.parse(raw);
     return {
       text: { ...defaultSettings.text, ...parsed.text },
+      presets: Array.isArray(parsed.presets) ? parsed.presets : [],
       assistant: { ...defaultSettings.assistant, ...parsed.assistant },
       voice: { ...defaultSettings.voice, ...parsed.voice },
       search: { ...defaultSettings.search, ...parsed.search },
