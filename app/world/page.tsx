@@ -1017,7 +1017,9 @@ function Play() {
 
       <div className="chap">
         <b>{chapterLabel(save)}</b>
-        <span className="n">{turns} 回合</span>
+        <span className="n">
+          {turns} 回合 · 本章 {turns === 0 ? 0 : ((turns - 1) % CHAPTER_TURNS) + 1}/{CHAPTER_TURNS}
+        </span>
         {hasMessages && (
           <button
             type="button"
