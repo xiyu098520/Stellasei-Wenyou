@@ -41,6 +41,8 @@ type ChatReply = {
   recap?: string;
   memo?: string;
   time?: string;
+  // 壳没解析出来（被截断），调用方据此重发一次
+  partial?: boolean;
 };
 
 // 关系按人成对合并：模型每回合只回变了的那几条，旧的一律留着。
@@ -347,8 +349,9 @@ function parseReply(raw: string): ChatReply {
   const salvaged = pullSegments(raw)
     .map((s) => toSegment(s as Segment))
     .filter((s): s is Segment => Boolean(s));
-  if (salvaged.length) return { segments: salvaged, options: pullStrings(raw, "options") };
-  return { segments: [{ type: "narration", text: raw.trim() }], options: [] };
+  // partial 说明壳是坏的：多半写到一半被截了，调用方要重发一次
+  if (salvaged.length) return { segments: salvaged, options: pullStrings(raw, "options"), partial: true };
+  return { segments: [{ type: "narration", text: raw.trim() }], options: [], partial: true };
 }
 
 // 早前解析失败时整段 JSON 被当成旁白存进了存档，这里就地把写完的段落救出来
@@ -680,32 +683,42 @@ function Play() {
         (turns === 0 || (turns - 1) % CHAPTER_TURNS === 0) && !chapterTitleOf(nextSave, nameAt + 1);
       const closeChapter = turns > 0 && turns % CHAPTER_TURNS === 0 && !nextSave.recaps?.[closeAt];
       const memoAt = turns > 0 && turns % 8 === 0 && turns % CHAPTER_TURNS !== 0;
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          baseUrl: settings.text.baseUrl,
-          apiKey: settings.text.apiKey,
-          model: settings.text.model,
-          messages: buildMessages(w, nextSave, opening, {
-            nameChapter,
-            closeChapter,
-            memo: memoAt,
-            extra,
-            ja: settings.voice.lang === "ja",
-            prologueScene: !!prologueScene,
+      // 一回合最多试两次：中转偶尔把请求当成异步任务，只回一句占位（task ready），
+      // 或者正文写到一半被截断。这两种都不算演出，重发一次通常就正常。
+      let reply: ChatReply | null = null;
+      for (let attempt = 0; attempt < 2 && !reply; attempt += 1) {
+        if (attempt) await new Promise((r) => setTimeout(r, 800));
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            baseUrl: settings.text.baseUrl,
+            apiKey: settings.text.apiKey,
+            model: settings.text.model,
+            messages: buildMessages(w, nextSave, opening, {
+              nameChapter,
+              closeChapter,
+              memo: memoAt,
+              extra,
+              ja: settings.voice.lang === "ja",
+              prologueScene: !!prologueScene,
+            }),
+            // 1600 是实测唯一能把思考压在两千以内的额度：这个中转把思考也算进输出额度，
+            // 额度给多大它就想多久（tiered 两次都是想到快满才停，正文被截断），所以不放开。
+            maxTokens: 1600,
           }),
-          // 1600 是实测唯一能把思考压在两千以内的额度：这个中转把思考也算进输出额度，
-          // 额度给多大它就想多久（tiered 两次都是想到快满才停，正文被截断），所以不放开。
-          maxTokens: 1600,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "请求失败");
-      const reply = parseReply(String(data.content || ""));
-      // 序章交给模型改写成正文（分段、分旁白/动作/台词），不再原样贴上去
-      // 正文一段都没救回来：不要存一条空回复，直接把错误摆出来让玩家再发
-      if (!reply.segments.length) throw new Error("这次模型没写出正文，再发一次。");
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "请求失败");
+        const got = parseReply(String(data.content || ""));
+        const words = got.segments.map((s) => s.text).join("").trim();
+        // 一句占位语（不足四十个字、又没有连续中文）也不算写出来
+        const broken =
+          !got.segments.length || got.partial || (words.length < 40 && !/[\u4e00-\u9fa5]{6}/.test(words));
+        if (!broken) reply = got;
+      }
+      // 两次都没写出来：不要存一条空回复，直接把错误摆出来让玩家再发
+      if (!reply) throw new Error("这次模型没写出正文，再发一次。");
       // 设想里只留设定表上真有的人名，模型乱编的名字直接丢掉
       const roster = new Set(w.characters.map((c) => c.name.trim()));
       const plan = reply.plan
