@@ -307,7 +307,7 @@ function Recap() {
   }
 
   return (
-    <main className="page">
+    <main className="page fill">
       <div className="topbar">
         <Link className="where" href={`/world/?id=${world.id}`}>
           <u>‹</u>

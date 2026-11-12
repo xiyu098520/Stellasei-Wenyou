@@ -624,7 +624,10 @@ button.cnew { background: none; border: none; padding: 0; }
 .revhead h1 { font-size: 24px; font-weight: 500; letter-spacing: .2em; text-shadow: 2px 1px 0 rgba(166, 73, 58, .10); }
 .revhead span { font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; color: var(--ink-4); }
 .summary { margin-top: 16px; padding-left: 11px; border-left: 1px solid rgba(166, 73, 58, .30); font-size: 13px; line-height: 2; color: var(--ink-2); letter-spacing: .03em; white-space: pre-line; }
-.revscroll { flex: 1; }
+/* 顶楼、标题、摘要固定不动，只有这一块内部滚动 */
+.revscroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 18px; scrollbar-width: thin; }
+.revscroll::-webkit-scrollbar { width: 3px; }
+.revscroll::-webkit-scrollbar-thumb { background: var(--line); }
 .revsec { margin-top: 26px; }
 .revsec h3 { font-size: 10px; font-weight: 400; letter-spacing: .22em; color: var(--ink-3); padding-bottom: 9px; border-bottom: 1px solid var(--line); }
 .revsec h3::before { content: ""; display: inline-block; width: 4px; height: 4px; background: var(--seal); margin-right: 7px; vertical-align: 2px; }
