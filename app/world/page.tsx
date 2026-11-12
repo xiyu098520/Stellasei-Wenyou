@@ -78,17 +78,52 @@ function threadKey(t: string) {
     .trim();
 }
 
-function mergeThreads(old: string[], delta: string[]): string[] {
-  // 先按内容把旧条目自己归并一次，清掉历史遗留的重复
-  const next = new Map<string, string>();
-  old.forEach((t) => next.set(threadKey(t), t));
-  if (!delta.length) return [...next.values()];
-  delta.forEach((d) => {
-    const k = threadKey(d);
-    if (d.trim().startsWith("✓")) next.delete(k);
-    else next.set(k, d);
+// 模型写同一件事时，前面一字不差、只在尾巴上换说法：
+//「重新戴回婚戒」「出示素银戒指」「挂着颈间的素银婚戒」。
+// 去掉括号后仍然不一样，按完整字符串直接比对认不出来，于是每条都留下，越攒越多。
+// 按两个字一组切成片比较，改几个字也能对上。
+function nearDuplicate(a: string, b: string) {
+  const grams = (s: string) => {
+    const set = new Set<string>();
+    for (let i = 0; i < s.length - 1; i += 1) set.add(s.slice(i, i + 2));
+    return set;
+  };
+  const A = grams(threadKey(a));
+  const B = grams(threadKey(b));
+  // 太短的条目不猜，免得把两件不同的小事并成一件
+  if (A.size < 6 || B.size < 6) return false;
+  let hit = 0;
+  A.forEach((g) => {
+    if (B.has(g)) hit += 1;
   });
-  return [...next.values()].slice(-24);
+  return hit / (A.size + B.size - hit) >= 0.72;
+}
+
+function mergeThreads(old: string[], delta: string[]): string[] {
+  // 先把旧条目自己归并一次，清掉历史遗留的重复：交卷时只留最新那一句
+  const list: string[] = [];
+  const put = (t: string) => {
+    const at = list.findIndex((x) => threadKey(x) === threadKey(t) || nearDuplicate(x, t));
+    if (at >= 0) list[at] = t;
+    else list.push(t);
+  };
+  old.forEach((t) => {
+    if (t.trim()) put(t.trim());
+  });
+  delta.forEach((d) => {
+    const t = d.trim();
+    if (!t) return;
+    // 兑现的那条带「✓」：按内容对上就删，对不上的也算同一件事的收尾
+    if (t.startsWith("✓")) {
+      const k = threadKey(t);
+      for (let i = list.length - 1; i >= 0; i -= 1) {
+        if (threadKey(list[i]) === k || nearDuplicate(list[i], t)) list.splice(i, 1);
+      }
+      return;
+    }
+    put(t);
+  });
+  return list.slice(-24);
 }
 
 function healThreads(s: Save): Save {
