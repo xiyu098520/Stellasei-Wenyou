@@ -703,9 +703,9 @@ function Play() {
               ja: settings.voice.lang === "ja",
               prologueScene: !!prologueScene,
             }),
-            // 1600 是实测唯一能把思考压在两千以内的额度：这个中转把思考也算进输出额度，
-            // 额度给多大它就想多久（tiered 两次都是想到快满才停，正文被截断），所以不放开。
-            maxTokens: 1600,
+            // 第一回合要一次列全六条关系，JSON 最长，1600 常写到一半就被掐断；
+            // 平时也留出余量，否则一段稍长的演出会卡在结不出 JSON 上。
+            maxTokens: turns === 0 ? 3200 : 2200,
           }),
         });
         const data = await res.json();
@@ -713,8 +713,10 @@ function Play() {
         const got = parseReply(String(data.content || ""));
         const words = got.segments.map((s) => s.text).join("").trim();
         // 一句占位语（不足四十个字、又没有连续中文）也不算写出来
+        // 截断但已经写出成段的正文，就别整条丢掉：这一回合照样能读，省一次重发
+        const substantial = got.segments.length >= 2 && words.length >= 200;
         const broken =
-          !got.segments.length || got.partial || (words.length < 40 && !/[\u4e00-\u9fa5]{6}/.test(words));
+          !got.segments.length || (got.partial && !substantial) || (words.length < 40 && !/[\u4e00-\u9fa5]{6}/.test(words));
         if (!broken) reply = got;
       }
       // 两次都没写出来：不要存一条空回复，直接把错误摆出来让玩家再发
