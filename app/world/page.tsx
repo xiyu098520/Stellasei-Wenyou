@@ -718,6 +718,10 @@ function Play() {
           continue;
         }
         const raw = String(data.content || "");
+        // 上游的安全审核拦的是「输入」，返回一段英文拒绝语当正文。重发没有意义，直接说清楚。
+        if (/sensitive words|could not be submitted|content policy|safety|violat|blocked/i.test(raw)) {
+          throw new Error("这条线路的安全审核拦下了本次输入（不是正文没写出来）。把最近这段里最露骨的词改淡一点，或在设置里换一条线路再试。");
+        }
         const got = parseReply(raw);
         const words = got.segments.map((s) => s.text).join("").trim();
         // 一句占位语（不足四十个字、又没有连续中文）也不算写出来
