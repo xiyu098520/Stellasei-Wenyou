@@ -686,7 +686,10 @@ function Play() {
       // 一回合最多试两次：中转偶尔把请求当成异步任务，只回一句占位（task ready），
       // 或者正文写到一半被截断。这两种都不算演出，重发一次通常就正常。
       let reply: ChatReply | null = null;
-      for (let attempt = 0; attempt < 2 && !reply; attempt += 1) {
+      let lastWhy = "";
+      // 第三次换一条路：不带 JSON 模式再要一遍。JSON 模式被上游静默拦掉时，
+      // 普通模式往往还能出字，出来的段落照样能解析。
+      for (let attempt = 0; attempt < 3 && !reply; attempt += 1) {
         if (attempt) await new Promise((r) => setTimeout(r, 800));
         const res = await fetch("/api/chat", {
           method: "POST",
@@ -706,11 +709,16 @@ function Play() {
             // 第一回合要一次列全六条关系，JSON 最长，1600 常写到一半就被掐断；
             // 平时也留出余量，否则一段稍长的演出会卡在结不出 JSON 上。
             maxTokens: turns === 0 ? 3200 : 2200,
+            ...(attempt === 2 ? { json: false } : {}),
           }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "请求失败");
-        const got = parseReply(String(data.content || ""));
+        if (!res.ok) {
+          lastWhy = String(data?.error || "请求失败").slice(0, 120);
+          continue;
+        }
+        const raw = String(data.content || "");
+        const got = parseReply(raw);
         const words = got.segments.map((s) => s.text).join("").trim();
         // 一句占位语（不足四十个字、又没有连续中文）也不算写出来
         // 截断但已经写出成段的正文，就别整条丢掉：这一回合照样能读，省一次重发
@@ -718,9 +726,10 @@ function Play() {
         const broken =
           !got.segments.length || (got.partial && !substantial) || (words.length < 40 && !/[\u4e00-\u9fa5]{6}/.test(words));
         if (!broken) reply = got;
+        else lastWhy = raw.trim() ? `只回了 ${words.length} 字：${raw.trim().slice(0, 80)}` : "空回复";
       }
-      // 两次都没写出来：不要存一条空回复，直接把错误摆出来让玩家再发
-      if (!reply) throw new Error("这次模型没写出正文，再发一次。");
+      // 三次都没写出来：把上游到底回了什么摆出来，别只说一句"再发一次"
+      if (!reply) throw new Error(`这次模型没写出正文（${lastWhy}）。模型：${settings.text.model}`);
       // 设想里只留设定表上真有的人名，模型乱编的名字直接丢掉
       const roster = new Set(w.characters.map((c) => c.name.trim()));
       const plan = reply.plan
