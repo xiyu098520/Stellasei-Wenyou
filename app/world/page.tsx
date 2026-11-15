@@ -587,24 +587,37 @@ function Play() {
     return undefined;
   }, [save]);
 
-  // 进世界要停在最近一段，而不是顶部。字体、换行、图片加载都会把高度改掉，
-  // 只在一次事件里设 scrollTop 会被后面的重排顶回原位，所以补两次延时再落一次。
+  // 进世界要停在最近一段。只设一两次 scrollTop 不够：字体、换行、头像加载都会把
+  // 高度往上改，浏览器还可能把滚动位置“锚”回原来的地方。这里持续钉住约一秒，
+  // 一旦玩家自己滑动就立刻松手，不再抢。
   useEffect(() => {
     const el = storyRef.current;
     if (!el) return;
+    let locked = true;
     const toBottom = () => {
+      if (!locked) return;
       el.scrollTop = el.scrollHeight;
     };
-    const raf = requestAnimationFrame(() => {
+    const release = () => {
+      locked = false;
+    };
+    el.addEventListener("touchstart", release, { passive: true });
+    el.addEventListener("wheel", release, { passive: true });
+    toBottom();
+    let n = 0;
+    let raf = 0;
+    const tick = () => {
       toBottom();
-      requestAnimationFrame(toBottom);
-    });
-    const t1 = setTimeout(toBottom, 150);
-    const t2 = setTimeout(toBottom, 450);
+      if (++n < 72) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    const t = setTimeout(toBottom, 900);
     return () => {
+      locked = false;
       cancelAnimationFrame(raf);
-      clearTimeout(t1);
-      clearTimeout(t2);
+      clearTimeout(t);
+      el.removeEventListener("touchstart", release);
+      el.removeEventListener("wheel", release);
     };
   }, [save, busy]);
 
