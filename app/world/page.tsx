@@ -385,9 +385,12 @@ function sanitizeSave(s: Save): Save {
     .filter((m) => isObj(m) && (m.role === "user" || m.role === "assistant"))
     .map((m) => ({ ...m, segments: arr(m.segments).filter((g) => isObj(g) && typeof g.text === "string") }));
   const relations = arr(s?.relations).filter((r) => isObj(r) && typeof r.state === "string");
-  const archive = arr(s?.archive)
-    .filter(isObj)
-    .map((a) => ({ ...a, events: arr(a.events).filter((e) => typeof e === "string") })) as Save["archive"];
+  // 档案的下标就是章号，坏的不能删，只能拿空壳占位，否则后面整排章号往前挪
+  const archive = arr(s?.archive).map((a, i) =>
+    isObj(a)
+      ? { ...a, events: arr(a.events).filter((e) => typeof e === "string") }
+      : { title: (s?.chapterTitles || [])[i] || "", period: "", state: "", summary: "", events: [], scenes: [] },
+  ) as Save["archive"];
   return {
     ...s,
     messages,
