@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteWorld, getSaves, listWorlds, putWorld } from "@/lib/db";
+import { deleteWorld, getSave, getSaves, listWorlds, putSave, putWorld } from "@/lib/db";
 import { chapterLabel, defaultBlocks, newId, Save, World } from "@/lib/types";
 import { formatWhen } from "@/lib/format";
 import { readImage } from "@/lib/image";
@@ -138,10 +138,34 @@ export default function HomePage() {
     URL.revokeObjectURL(a.href);
   }
 
+  // 连存档一起导出：世界卡住点不进去时，这是唯一的抢救口
+  async function exportFull(w: World) {
+    const s = await getSave(w.id);
+    const blob = new Blob([JSON.stringify({ format: "wenyou.full", world: w, save: s ?? null }, null, 2)], {
+      type: "application/json",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${w.title || "世界"}-全部.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   async function onImport(file: File) {
     const text = await file.text();
     try {
       const data = JSON.parse(text);
+      // 整包（设定＋存档）导回来：换一个新 id 存，不动原来的坏档
+      if (data?.format === "wenyou.full" && data.world && typeof data.world.title === "string") {
+        const id = newId();
+        const world: World = { ...(data.world as World), id, updatedAt: Date.now() };
+        await putWorld(world);
+        if (data.save && typeof data.save === "object") {
+          await putSave({ ...(data.save as Save), worldId: id });
+        }
+        refresh();
+        return;
+      }
       if (!data || typeof data.title !== "string") throw new Error("bad file");
       const now = Date.now();
       const world: World = {
@@ -406,6 +430,14 @@ export default function HomePage() {
                   onClick={() => exportScript(menuWorld)}
                 >
                   导出剧本
+                </button>
+                <button
+                  type="button"
+                  className="aside"
+                  style={{ fontSize: 11, letterSpacing: ".1em" }}
+                  onClick={() => exportFull(menuWorld)}
+                >
+                  导出全部（设定＋原文＋档案）
                 </button>
                 {!confirmDelete ? (
                   <button
