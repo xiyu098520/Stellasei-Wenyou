@@ -587,9 +587,25 @@ function Play() {
     return undefined;
   }, [save]);
 
+  // 进世界要停在最近一段，而不是顶部。字体、换行、图片加载都会把高度改掉，
+  // 只在一次事件里设 scrollTop 会被后面的重排顶回原位，所以补两次延时再落一次。
   useEffect(() => {
     const el = storyRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const toBottom = () => {
+      el.scrollTop = el.scrollHeight;
+    };
+    const raf = requestAnimationFrame(() => {
+      toBottom();
+      requestAnimationFrame(toBottom);
+    });
+    const t1 = setTimeout(toBottom, 150);
+    const t2 = setTimeout(toBottom, 450);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [save, busy]);
 
   function chapterTranscript(messages: Message[], idx: number, base = 0) {
