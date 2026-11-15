@@ -709,15 +709,47 @@ function Play() {
             // 第一回合要一次列全六条关系，JSON 最长，1600 常写到一半就被掐断；
             // 平时也留出余量，否则一段稍长的演出会卡在结不出 JSON 上。
             maxTokens: turns === 0 ? 3200 : 2200,
+            stream: true,
             ...(attempt === 2 ? { json: false } : {}),
           }),
         });
-        const data = await res.json();
+        // 正文也走流式：一次性等整段，长演出会被网关掐成 504／空回。
+        // 这里只把 SSE 的 delta 拼回来，前面照旧按完整 JSON 解析。
+        let raw = "";
+        if ((res.headers.get("content-type") || "").includes("text/event-stream") && res.body) {
+          const reader = res.body.getReader();
+          const dec = new TextDecoder();
+          let buf = "";
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            const lines = buf.split("\n");
+            buf = lines.pop() || "";
+            for (const line of lines) {
+              const t = line.trim();
+              if (!t.startsWith("data:")) continue;
+              const payload = t.slice(5).trim();
+              if (!payload || payload === "[DONE]") continue;
+              try {
+                const o = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] };
+                const d = o?.choices?.[0]?.delta?.content;
+                if (typeof d === "string") raw += d;
+              } catch {
+                /* 半截的 SSE 行跳过 */
+              }
+            }
+          }
+        }
         if (!res.ok) {
-          lastWhy = String(data?.error || "请求失败").slice(0, 120);
+          const data = await res.json().catch(() => null);
+          lastWhy = String((data as { error?: string } | null)?.error || `请求失败 ${res.status}`).slice(0, 120);
           continue;
         }
-        const raw = String(data.content || "");
+        if (!raw) {
+          const data = await res.json().catch(() => null);
+          raw = String((data as { content?: string } | null)?.content || "");
+        }
         // 上游的安全审核拦的是「输入」，返回一段英文拒绝语当正文。重发没有意义，直接说清楚。
         if (/sensitive words|could not be submitted|content policy|safety|violat|blocked/i.test(raw)) {
           throw new Error("这条线路的安全审核拦下了本次输入（不是正文没写出来）。把最近这段里最露骨的词改淡一点，或在设置里换一条线路再试。");
