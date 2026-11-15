@@ -57,18 +57,39 @@ function Recap() {
   // 章节列表整块先收起来：十五六章的名字摆一屏，正文都被挤下去了
   const [listOpen, setListOpen] = useState(false);
 
+  // 读库失败或卡住时不能让页面一直停在「正在翻开」：记下原因，给一个重新打开的口子
+  const [err, setErr] = useState("");
   useEffect(() => {
-    (async () => {
-      const w = await getWorld(worldId);
-      if (!w) {
-        setLoading(false);
-        return;
-      }
-      const s = await getSave(worldId);
-      setWorld(w);
-      setSave(s);
+    let alive = true;
+    // 六秒还没读到：多半是另一个标签页占着数据库，或浏览器把库锁住了
+    const timer = setTimeout(() => {
+      if (!alive) return;
+      setErr("存档读取超时，可能是别处还开着这个世界");
       setLoading(false);
-    })();
+    }, 6000);
+    (async () => {
+      try {
+        const w = await getWorld(worldId);
+        if (!alive) return;
+        if (!w) {
+          setLoading(false);
+          return;
+        }
+        const s = await getSave(worldId);
+        if (!alive) return;
+        setWorld(w);
+        setSave(s);
+        setLoading(false);
+      } catch (e) {
+        if (!alive) return;
+        setErr(e instanceof Error ? e.message : String(e));
+        setLoading(false);
+      }
+    })().finally(() => clearTimeout(timer));
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [worldId]);
 
   if (loading) {
@@ -87,7 +108,12 @@ function Recap() {
             <u>‹</u>我的世界
           </Link>
         </div>
-        <p className="emptyhint">这个世界不在了。</p>
+        <p className="emptyhint">{err ? `打不开：${err}` : "这个世界不在了。"}</p>
+        {err ? (
+          <button className="newline" onClick={() => location.reload()}>
+            <u>↻</u>重新打开
+          </button>
+        ) : null}
       </main>
     );
   }
