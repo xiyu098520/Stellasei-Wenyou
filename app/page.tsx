@@ -52,10 +52,16 @@ export default function HomePage() {
   }
 
   async function refresh() {
-    const [ws, ss] = await Promise.all([listWorlds(), getSaves()]);
-    setWorlds(ws);
-    setSaves(Object.fromEntries(ss.map((s) => [s.worldId, s])));
-    setLoading(false);
+    // 读库失败（被别的页面占住、超时）也要把转圈收掉，否则一直停在「正在翻开」
+    try {
+      const [ws, ss] = await Promise.all([listWorlds(), getSaves()]);
+      setWorlds(ws);
+      setSaves(Object.fromEntries(ss.map((s) => [s.worldId, s])));
+    } catch {
+      /* 顶上还有「刷新」可以再试一次 */
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {

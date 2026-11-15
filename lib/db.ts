@@ -36,20 +36,36 @@ function openDB() {
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
+      // 另一个标签页占着旧版本时，open 会一直挂着，不报也不通
+      req.onblocked = () => reject(new Error("本地数据库被另一个页面占着，先把它关掉"));
+    });
+    dbPromise = dbPromise.catch((e) => {
+      dbPromise = null;
+      throw e;
     });
   }
   return dbPromise;
 }
 
+// 读库不能无限等：一旦没响应，页面就会永远停在「正在翻开」
+function guard<T>(p: Promise<T>, ms = 8000): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("本地数据库没有响应")), ms)),
+  ]);
+}
+
 function tx<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>) {
-  return openDB().then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const t = db.transaction(store, mode);
-        const req = fn(t.objectStore(store));
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      }),
+  return guard(
+    openDB().then(
+      (db) =>
+        new Promise<T>((resolve, reject) => {
+          const t = db.transaction(store, mode);
+          const req = fn(t.objectStore(store));
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        }),
+    ),
   );
 }
 
