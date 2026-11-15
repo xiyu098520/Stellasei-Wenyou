@@ -592,6 +592,7 @@ function Play() {
   // 高度往上改，浏览器还可能把滚动位置“锚”回原来的地方。这里持续钉住约一秒，
   // 一旦玩家自己滑动就立刻松手，不再抢。
   useEffect(() => {
+    if (loading) return;
     const el = storyRef.current;
     if (!el) return;
     let locked = true;
@@ -622,7 +623,7 @@ function Play() {
       el.removeEventListener("touchstart", release);
       el.removeEventListener("wheel", release);
     };
-  }, [save, busy]);
+  }, [save, busy, loading]);
 
   function chapterTranscript(messages: Message[], idx: number, base = 0) {
     // 早前的章整章砍掉过，回合数要从被砍的地方接着数，不然章号会往前错位
