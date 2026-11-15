@@ -376,6 +376,28 @@ function rescueSave(s: Save): Save {
   return changed ? { ...s, messages } : s;
 }
 
+// 存档被写坏时（某一项成了 null、字符串，或者少了字段），后面任何一次读取都会整页崩。
+// 读进来先归一遍：结构不对的项直接丢掉，剩下的照常演，别再让一个坏项毁掉整个世界。
+function sanitizeSave(s: Save): Save {
+  const arr = (v: unknown): any[] => (Array.isArray(v) ? v : []);
+  const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === "object";
+  const messages = arr(s?.messages)
+    .filter((m) => isObj(m) && (m.role === "user" || m.role === "assistant"))
+    .map((m) => ({ ...m, segments: arr(m.segments).filter((g) => isObj(g) && typeof g.text === "string") }));
+  const relations = arr(s?.relations).filter((r) => isObj(r) && typeof r.state === "string");
+  const archive = arr(s?.archive)
+    .filter(isObj)
+    .map((a) => ({ ...a, events: arr(a.events).filter((e) => typeof e === "string") })) as Save["archive"];
+  return {
+    ...s,
+    messages,
+    relations,
+    archive,
+    threads: arr(s?.threads).filter((t) => typeof t === "string"),
+    recaps: arr(s?.recaps).filter((r) => typeof r === "string"),
+  };
+}
+
 export default function PlayPage() {
   // 静态导出没有动态路由，世界 id 改从查询串读；useSearchParams 必须包在 Suspense 里
   return (
@@ -534,7 +556,7 @@ function Play() {
         }
         const s = await getSave(worldId);
         if (!alive) return;
-        const fixed = s ? healThreads(healRelations(rescueSave(s))) : s;
+        const fixed = s ? healThreads(healRelations(rescueSave(sanitizeSave(s)))) : s;
         setWorld(w);
         setSave(fixed);
         if (fixed?.seed) setSeed(fixed.seed);
