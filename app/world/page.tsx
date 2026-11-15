@@ -443,6 +443,7 @@ function Play() {
   const [toast, setToast] = useState("");
   const [playing, setPlaying] = useState<string | null>(null);
   const storyRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   // 输入框自己按内容长高；高度统一由 draft/seed 变化来算，
   // 不然发送后清空、点选项填字时高度对不上，框就会忽大忽小
   const draftRef = useRef<HTMLTextAreaElement>(null);
@@ -597,6 +598,8 @@ function Play() {
     const toBottom = () => {
       if (!locked) return;
       el.scrollTop = el.scrollHeight;
+      // 兜底：万一真正滚动的是外层容器，把末尾那颗哨兵滚进视野也能落到最近一段
+      endRef.current?.scrollIntoView({ block: "end" });
     };
     const release = () => {
       locked = false;
@@ -1334,6 +1337,7 @@ function Play() {
         )}
 
         {busy && <div className="waiting">正在发生</div>}
+        <div ref={endRef} style={{ height: 1 }} />
       </div>
 
       <div className="composer">
