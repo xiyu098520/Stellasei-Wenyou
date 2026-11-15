@@ -521,22 +521,35 @@ function Play() {
     if (prologueRef.current) fitTextarea(prologueRef.current, 220);
   }, [prologue]);
 
+  const [loadErr, setLoadErr] = useState("");
   useEffect(() => {
+    let alive = true;
     (async () => {
-      const w = await getWorld(worldId);
-      if (!w) {
-        setLoading(false);
-        return;
+      try {
+        const w = await getWorld(worldId);
+        if (!alive) return;
+        if (!w) {
+          setLoading(false);
+          return;
+        }
+        const s = await getSave(worldId);
+        if (!alive) return;
+        const fixed = s ? healThreads(healRelations(rescueSave(s))) : s;
+        setWorld(w);
+        setSave(fixed);
+        if (fixed?.seed) setSeed(fixed.seed);
+        if (fixed?.prologue) setPrologue(fixed.prologue);
+        if (fixed && fixed !== s) await putSave(fixed);
+      } catch (e) {
+        if (!alive) return;
+        setLoadErr(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (alive) setLoading(false);
       }
-      const s = await getSave(worldId);
-      const fixed = s ? healThreads(healRelations(rescueSave(s))) : s;
-      setWorld(w);
-      setSave(fixed);
-      if (fixed?.seed) setSeed(fixed.seed);
-      if (fixed?.prologue) setPrologue(fixed.prologue);
-      setLoading(false);
-      if (fixed && fixed !== s) await putSave(fixed);
     })();
+    return () => {
+      alive = false;
+    };
   }, [worldId]);
 
   const turns = save ? turnsOf(save) : 0;
@@ -1050,7 +1063,12 @@ function Play() {
             <u>‹</u>我的世界
           </Link>
         </div>
-        <p className="emptyhint">这个世界不在了。</p>
+        <p className="emptyhint">{loadErr ? `打不开：${loadErr}` : "这个世界不在了。"}</p>
+        {loadErr ? (
+          <button className="newline" onClick={() => location.reload()}>
+            <u>↻</u>重新打开
+          </button>
+        ) : null}
       </main>
     );
   }
