@@ -291,7 +291,7 @@ function parseReply(raw: string): ChatReply {
       .map((s) => toSegment(s as Segment))
       .filter((s): s is Segment => Boolean(s));
     const options: string[] = Array.isArray(data.options)
-      ? data.options.filter((o: unknown) => typeof o === "string" && o.trim()).slice(0, 3)
+      ? data.options.filter((o: unknown) => typeof o === "string" && o.trim()).slice(0, 2)
       : [];
     const threads = Array.isArray(data.threads)
       ? data.threads
