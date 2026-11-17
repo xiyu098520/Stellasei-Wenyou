@@ -77,8 +77,6 @@ export type Message = {
   stage?: Stage;
   // 给不在对话里的那一个人的镜头，只写看得见的动作
   aside?: string;
-  // 视线之外同时发生的事：同一间屋、同一层楼，或别处
-  elsewhere?: { who?: string; text: string };
   gained?: Gained[];
   // 这一回合对下一场的设想：大概走到哪、可能碰到谁。只是打算，走向变了就作废
   plan?: { scene: string; cast: string[] };
@@ -90,6 +88,8 @@ export type Relation = {
   b: string;
   // 亲密度档位 L0–L4：只当工作、动摇、承认、越界、在一起（记的是你走到哪一步）
   level?: number;
+  // 真正见过几次面（有来有往才算），档位跟着这个数走
+  meets?: number;
   state: string;
 };
 

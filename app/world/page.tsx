@@ -34,8 +34,6 @@ type ChatReply = {
   relations?: Relation[];
   stage?: Stage;
   aside?: string;
-  // 视线之外同时发生的事
-  elsewhere?: { who?: string; text: string };
   gained?: Gained[];
   // 下一场的设想：走到哪、可能碰上谁。只是打算，走向变了就作废
   plan?: { scene: string; cast: string[] };
@@ -58,6 +56,7 @@ function mergeRelations(old: Relation[], delta: Relation[]): Relation[] {
       next[i] = {
         ...next[i],
         level: d.level ?? next[i].level,
+        meets: d.meets ?? next[i].meets,
         state: d.state,
       };
     else next.push(d);
@@ -311,6 +310,10 @@ function parseReply(raw: string): ChatReply {
               typeof r.level === "number" && r.level >= 0 && r.level <= 5
                 ? Math.round(r.level)
                 : undefined,
+            meets:
+              typeof r.meets === "number" && r.meets >= 0 && r.meets <= 999
+                ? Math.round(r.meets)
+                : undefined,
             state: String(r.state || "").trim().slice(0, 60),
           }))
           .filter((r: Relation) => r.state)
@@ -322,15 +325,6 @@ function parseReply(raw: string): ChatReply {
     const time = typeof data.time === "string" ? data.time.trim().slice(0, 40) : "";
     const stage = toStage(data.stage);
     const aside = typeof data.aside === "string" ? data.aside.trim().slice(0, 80) : "";
-    // 视线之外的那一层：只认 who + text，别的字段一概不要
-    const rawElse = data.elsewhere && typeof data.elsewhere === "object" ? (data.elsewhere as { who?: unknown; text?: unknown }) : null;
-    const elseText = rawElse && typeof rawElse.text === "string" ? rawElse.text.trim().slice(0, 240) : "";
-    const elsewhere = elseText
-      ? {
-          who: rawElse && typeof rawElse.who === "string" && rawElse.who.trim() ? rawElse.who.trim().slice(0, 20) : undefined,
-          text: elseText,
-        }
-      : undefined;
     const gained: Gained[] = Array.isArray(data.gained)
       ? data.gained
           .filter((g: unknown) => g && typeof g === "object")
@@ -352,7 +346,7 @@ function parseReply(raw: string): ChatReply {
       : [];
     const plan = scene || cast.length ? { scene, cast } : undefined;
     if (segments.length)
-      return { segments, options, threads, relations, stage, aside, elsewhere, gained, plan, chapter, recap, memo, time };
+      return { segments, options, threads, relations, stage, aside, gained, plan, chapter, recap, memo, time };
   } catch {
     // 模型没按 JSON 回，往下逐段捞
   }
@@ -861,7 +855,6 @@ function Play() {
         options: reply.options,
         stage: reply.stage,
         aside: reply.aside,
-        elsewhere: reply.elsewhere,
         gained: reply.gained,
         plan,
         at: Date.now(),
@@ -1329,12 +1322,6 @@ function Play() {
               );
               })}
               {m.aside ? <div className="aside">{m.aside}</div> : null}
-              {m.elsewhere?.text ? (
-                <div className="elsewhere">
-                  <b>{m.elsewhere.who ? `视线的另一边 · ${m.elsewhere.who}` : "视线的另一边"}</b>
-                  {m.elsewhere.text}
-                </div>
-              ) : null}
               {(() => {
                 // 模型爱把以前给过的东西再报一遍，只显示这回合新到手的那几件
                 const before = new Set<string>();
