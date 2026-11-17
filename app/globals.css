@@ -270,6 +270,9 @@ a { color: inherit; text-decoration: none; }
 .nowsub > span + span::before { content: "—"; color: var(--ink-3); margin-right: 7px; }
 /* 旁观镜头：写给不在对话里的人，只写看得见的动作 */
 .aside { margin: 0 0 22px; padding-left: 12px; border-left: 1px solid var(--line); font-size: 12.5px; line-height: 1.95; color: var(--ink-3); letter-spacing: .03em; white-space: pre-wrap; }
+/* 视线之外同时发生的事：单独一块，字更淡，标一行小字 */
+.elsewhere { margin: 0 0 22px; padding: 9px 12px; border-left: 1px dashed var(--line); font-size: 12.5px; line-height: 1.95; color: var(--ink-3); letter-spacing: .03em; white-space: pre-wrap; }
+.elsewhere b { display: block; font-weight: 500; font-size: 10px; letter-spacing: .18em; color: var(--ink-4); margin-bottom: 5px; }
 /* 到手的东西 */
 .loot { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 24px; }
 .lootitem { display: inline-flex; align-items: baseline; gap: 7px; padding: 5px 10px; border: 1px solid var(--line); font-size: 11.5px; color: var(--ink-2); }

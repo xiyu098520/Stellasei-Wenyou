@@ -77,6 +77,8 @@ export type Message = {
   stage?: Stage;
   // 给不在对话里的那一个人的镜头，只写看得见的动作
   aside?: string;
+  // 视线之外同时发生的事：同一间屋、同一层楼，或别处
+  elsewhere?: { who?: string; text: string };
   gained?: Gained[];
   // 这一回合对下一场的设想：大概走到哪、可能碰到谁。只是打算，走向变了就作废
   plan?: { scene: string; cast: string[] };
