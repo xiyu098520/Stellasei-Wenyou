@@ -67,6 +67,12 @@ export type Gained = {
   note?: string;
 };
 
+// 直播间弹幕：观众身份 + 那句话，单独一块，不混进正文
+export type Audience = {
+  name: string;
+  text: string;
+};
+
 export type Message = {
   id: string;
   role: "user" | "assistant";
@@ -77,6 +83,8 @@ export type Message = {
   stage?: Stage;
   // 给不在对话里的那一个人的镜头，只写看得见的动作
   aside?: string;
+  // 这一段播出时飘过的弹幕，2–4 条，安静的时候可以没有
+  audience?: Audience[];
   gained?: Gained[];
   // 这一回合对下一场的设想：大概走到哪、可能碰到谁。只是打算，走向变了就作废
   plan?: { scene: string; cast: string[] };

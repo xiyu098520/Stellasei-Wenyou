@@ -13,6 +13,7 @@ import {
   chapterNo,
   chapterTitleOf,
   CHAPTER_TURNS,
+  Audience,
   Gained,
   Message,
   newId,
@@ -34,6 +35,8 @@ type ChatReply = {
   relations?: Relation[];
   stage?: Stage;
   aside?: string;
+  // 这一段播出时的弹幕：观众身份 + 那句话
+  audience?: Audience[];
   gained?: Gained[];
   // 下一场的设想：走到哪、可能碰上谁。只是打算，走向变了就作废
   plan?: { scene: string; cast: string[] };
@@ -44,6 +47,16 @@ type ChatReply = {
   // 壳没解析出来（被截断），调用方据此重发一次
   partial?: boolean;
 };
+
+// 弹幕按身份上色：颜粉、CP粉、黑粉、榜一各一色，其余走灰
+function audienceTone(name: string): string {
+  if (name.includes("榜") || name.includes("金主") || name.includes("舰长")) return "top";
+  if (name.includes("黑") || name.includes("喷")) return "hate";
+  if (name.toUpperCase().includes("CP") || name.includes("嗑") || name.includes("缠")) return "cp";
+  if (name.includes("颜") || name.includes("脸") || name.includes("肉体")) return "face";
+  if (name.includes("事业") || name.includes("技术") || name.includes("考据")) return "geek";
+  return "mute";
+}
 
 // 关系按人成对合并：模型每回合只回变了的那几条，旧的一律留着。
 // 以前是整表替换，模型一压缩就把前几章的人挤没了。
@@ -325,6 +338,17 @@ function parseReply(raw: string): ChatReply {
     const time = typeof data.time === "string" ? data.time.trim().slice(0, 40) : "";
     const stage = toStage(data.stage);
     const aside = typeof data.aside === "string" ? data.aside.trim().slice(0, 80) : "";
+    // 弹幕单独一块：名字太长或句子太长的都截掉，空条目直接丢
+    const audience: Audience[] = Array.isArray(data.audience)
+      ? data.audience
+          .filter((a: unknown) => a && typeof a === "object")
+          .map((a: { name?: unknown; text?: unknown }) => ({
+            name: typeof a.name === "string" ? a.name.trim().slice(0, 6) : "",
+            text: typeof a.text === "string" ? a.text.trim().slice(0, 40) : "",
+          }))
+          .filter((a: Audience) => a.name && a.text)
+          .slice(0, 4)
+      : [];
     const gained: Gained[] = Array.isArray(data.gained)
       ? data.gained
           .filter((g: unknown) => g && typeof g === "object")
@@ -346,7 +370,7 @@ function parseReply(raw: string): ChatReply {
       : [];
     const plan = scene || cast.length ? { scene, cast } : undefined;
     if (segments.length)
-      return { segments, options, threads, relations, stage, aside, gained, plan, chapter, recap, memo, time };
+      return { segments, options, threads, relations, stage, aside, audience, gained, plan, chapter, recap, memo, time };
   } catch {
     // 模型没按 JSON 回，往下逐段捞
   }
@@ -855,6 +879,7 @@ function Play() {
         options: reply.options,
         stage: reply.stage,
         aside: reply.aside,
+        audience: reply.audience?.length ? reply.audience : undefined,
         gained: reply.gained,
         plan,
         at: Date.now(),
@@ -1338,6 +1363,16 @@ function Play() {
                   </div>
                 ) : null;
               })()}
+              {m.audience?.length ? (
+                <div className="audience">
+                  {m.audience.map((a, i) => (
+                    <div className={`aurow au-${audienceTone(a.name)}`} key={`${m.id}-a${i}`}>
+                      <b>{a.name}</b>
+                      <span>{a.text}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </Fragment>
           ),
         )}

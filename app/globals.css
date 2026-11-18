@@ -275,6 +275,15 @@ a { color: inherit; text-decoration: none; }
 .lootitem { display: inline-flex; align-items: baseline; gap: 7px; padding: 5px 10px; border: 1px solid var(--line); font-size: 11.5px; color: var(--ink-2); }
 .lootitem b { font-weight: 500; color: var(--ink); }
 .lootitem em { font-style: normal; font-size: 10.5px; color: var(--ink-3); }
+/* 直播间弹幕：正文下方的窄框，每条一行，身份上色 */
+.audience { margin: -6px 0 24px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 3px; background: rgba(0, 0, 0, .02); }
+.aurow { display: flex; gap: 8px; font-size: 12px; line-height: 1.9; letter-spacing: .03em; color: var(--ink-2); }
+.aurow b { flex: none; font-weight: 500; color: var(--ink-3); }
+.au-face b { color: #c2698c; }
+.au-cp b { color: #5d8fb3; }
+.au-hate b { color: #8b7a7a; }
+.au-top b { color: #b08b4f; }
+.au-geek b { color: #6b8f7a; }
 .story { flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px; padding-right: 2px; scrollbar-width: thin; overflow-anchor: none; }
 .story::-webkit-scrollbar { width: 3px; }
 .story::-webkit-scrollbar-thumb { background: var(--line); }
