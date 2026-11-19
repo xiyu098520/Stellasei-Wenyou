@@ -194,6 +194,18 @@ function Recap() {
     if (!next) setOpenCh([]);
   }
 
+  // 模型偶尔把不该进关系表的人写进来：这里给一个手动删掉的口子，只改总表，不动任何剧情
+  async function dropRelation(index: number) {
+    if (!save) return;
+    const next: Save = {
+      ...save,
+      relations: (save.relations || []).filter((_, k) => k !== index),
+      updatedAt: Date.now(),
+    };
+    setSave(next);
+    await putSave(next);
+  }
+
   async function revert(index: number) {
     if (!save) return;
     const next: Save = {
@@ -437,6 +449,14 @@ function Recap() {
           {save.relations?.length ? (
             save.relations.map((r, i) => (
               <div className="debt" key={`${r.a}-${r.b}-${i}`}>
+                <span
+                  className="drop"
+                  role="button"
+                  title="删掉这条"
+                  onClick={() => dropRelation(i)}
+                >
+                  ×
+                </span>
                 {r.a} ↔ {r.b}：{levelText(r.level) ? `${levelText(r.level)} · ` : ""}
                 {r.state}
               </div>

@@ -647,6 +647,8 @@ button.cnew { background: none; border: none; padding: 0; }
 .memline { margin-top: 5px; font-size: 11px; line-height: 1.9; color: var(--ink-3); letter-spacing: .03em; }
 .debt { padding: 11px 0; border-bottom: 1px solid var(--line-soft); font-size: 12px; line-height: 1.9; color: var(--ink-2); letter-spacing: .03em; }
 .debt::before { content: "—"; color: var(--ink-4); margin-right: 8px; }
+.debt .drop { float: right; cursor: pointer; color: var(--ink-4); padding: 0 2px 0 10px; user-select: none; }
+.debt .drop:hover { color: var(--ink-1); }
 .turnrow { display: flex; align-items: baseline; gap: 9px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
 .turnrow em { flex: none; font-style: normal; font-family: var(--mono); font-size: 9px; color: var(--ink-4); }
 .turnrow p { flex: 1; min-width: 0; font-size: 12px; line-height: 1.7; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
