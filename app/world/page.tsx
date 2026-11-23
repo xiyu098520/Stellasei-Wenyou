@@ -806,9 +806,8 @@ function Play() {
               ja: settings.voice.lang === "ja",
               prologueScene: !!prologueScene,
             }),
-            // 第一回合要一次列全六条关系，JSON 最长，1600 常写到一半就被掐断；
-            // 平时也留出余量，否则一段稍长的演出会卡在结不出 JSON 上。
-            maxTokens: turns === 0 ? 3200 : 2200,
+            // 正文 800–1600 字，加上 JSON 和关系表，2200 会被中途掐断；留足余量。
+            maxTokens: turns === 0 ? 6000 : 5000,
             stream: true,
             ...(attempt === 2 ? { json: false } : {}),
           }),
