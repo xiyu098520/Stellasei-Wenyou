@@ -508,7 +508,9 @@ a { color: inherit; text-decoration: none; }
 .seed textarea::placeholder { color: var(--ink-4); }
 /* 序章要能写很长：框高一些，也允许它长到 220px */
 .seed textarea.prologue { max-height: 220px; min-height: 84px; font-size: 13.5px; }
-.composer { padding-top: 14px; padding-bottom: env(safe-area-inset-bottom); background: linear-gradient(180deg, rgba(252, 250, 246, 0), var(--paper) 34%); }
+.composer { padding-top: 14px; padding-bottom: 0; background: linear-gradient(180deg, rgba(252, 250, 246, 0), var(--paper) 34%); }
+/* 游玩页底部不留白：不然输入框会被整体顶上去，离底边老远 */
+.page:has(.composer) { padding-bottom: 0; }
 /* 选项：编号 + 细线分隔的编辑风条目，不用圆角块和阴影 */
 .chips { display: flex; flex-direction: column; gap: 0; margin-bottom: 12px; }
 .chiprow {
