@@ -617,42 +617,69 @@ function Play() {
     return undefined;
   }, [save]);
 
-  // 进世界要停在最近一段。只设一两次 scrollTop 不够：字体、换行、头像加载都会把
-  // 高度往上改，浏览器还可能把滚动位置“锚”回原来的地方。这里持续钉住约一秒，
-  // 一旦玩家自己滑动就立刻松手，不再抢。
+  // 进世界要直接停在最近一段，不能让人看着它从顶上滑下来。
+  // 所以这里不做平滑滚动，只在挂载、字体撑开、头像加载这几个时刻各硬跳一次。
   useEffect(() => {
     if (loading) return;
     const el = storyRef.current;
     if (!el) return;
-    let locked = true;
-    const toBottom = () => {
-      if (!locked) return;
+    const jump = () => {
       el.scrollTop = el.scrollHeight;
-      // 兜底：万一真正滚动的是外层容器，把末尾那颗哨兵滚进视野也能落到最近一段
-      endRef.current?.scrollIntoView({ block: "end" });
     };
-    const release = () => {
-      locked = false;
-    };
-    el.addEventListener("touchstart", release, { passive: true });
-    el.addEventListener("wheel", release, { passive: true });
-    toBottom();
-    let n = 0;
-    let raf = 0;
-    const tick = () => {
-      toBottom();
-      if (++n < 72) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    const t = setTimeout(toBottom, 900);
+    jump();
+    const raf = requestAnimationFrame(jump);
+    const t1 = setTimeout(jump, 120);
+    const t2 = setTimeout(jump, 450);
     return () => {
-      locked = false;
       cancelAnimationFrame(raf);
-      clearTimeout(t);
-      el.removeEventListener("touchstart", release);
-      el.removeEventListener("wheel", release);
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
-  }, [save, busy, loading]);
+  }, [loading]);
+
+  // 发送后先看到自己说了什么（落到末尾），等新的一段回来再停在它的开头。
+  const lastSeenRef = useRef<{ user: string | null; assistant: string | null }>({ user: null, assistant: null });
+  useEffect(() => {
+    if (loading || !save) return;
+    const list = save.messages || [];
+    const lastUser = [...list].reverse().find((m) => m.role === "user");
+    const lastAst = [...list].reverse().find((m) => m.role === "assistant");
+    const seen = lastSeenRef.current;
+
+    // 第一次进这个存档只记状态，不抢滚动
+    if (seen.user === null && seen.assistant === null) {
+      seen.user = lastUser?.id ?? null;
+      seen.assistant = lastAst?.id ?? null;
+      return;
+    }
+
+    // 我刚发出一条：落到末尾，让人看见自己说了什么、也在等
+    if (lastUser && lastUser.id !== seen.user) {
+      seen.user = lastUser.id;
+      requestAnimationFrame(() => {
+        const el = storyRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    }
+
+    // 新的一段回来了：停在它的开头
+    if (lastAst && lastAst.id !== seen.assistant) {
+      seen.assistant = lastAst.id;
+      const from = list.findIndex((m) => m.id === lastAst.id);
+      requestAnimationFrame(() => {
+        const el = storyRef.current;
+        if (!el) return;
+        const node = el.querySelector<HTMLElement>(`[data-start="${from}"]`);
+        if (node) {
+          // 自己算位置，别用 scrollIntoView：那会把外层页面也一起滚，整页跟着跳
+          const top = node.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+          el.scrollTop = Math.max(0, top - 6);
+        } else {
+          el.scrollTop = el.scrollHeight;
+        }
+      });
+    }
+  }, [save, loading]);
 
   function chapterTranscript(messages: Message[], idx: number, base = 0) {
     // 早前的章整章砍掉过，回合数要从被砍的地方接着数，不然章号会往前错位
@@ -1287,7 +1314,7 @@ function Play() {
 
         {save.messages.map((m, mi) =>
           m.role === "user" ? (
-            <div className="blk you" key={m.id}>
+            <div className="blk you" key={m.id} data-start={mi}>
               <span className="you-label">你</span>
               <div className="act">{m.text}</div>
             </div>
@@ -1298,7 +1325,7 @@ function Play() {
               if (seg.type === "line" && seg.speaker) {
                 const c = characterByName(world, seg.speaker);
                 return (
-                  <div className={seg.via ? "blk say msg" : "blk say"} key={key}>
+                  <div className={seg.via ? "blk say msg" : "blk say"} key={key} data-start={i === 0 ? mi : undefined}>
                     <div className="sayer">
                       <span className="face">
                         {c?.avatar ? <img src={c.avatar} alt="" /> : (seg.speaker || "？").slice(0, 1)}
@@ -1334,13 +1361,13 @@ function Play() {
               }
               if (seg.type === "action") {
                 return (
-                  <div className="blk act" key={key}>
+                  <div className="blk act" key={key} data-start={i === 0 ? mi : undefined}>
                     {seg.text}
                   </div>
                 );
               }
               return (
-                <div className="blk narr" key={key}>
+                <div className="blk narr" key={key} data-start={i === 0 ? mi : undefined}>
                   {seg.text}
                 </div>
               );

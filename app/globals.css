@@ -993,8 +993,6 @@ button.cnew { background: none; border: none; padding: 8px 0; }
 /* 抽屉和遮罩 */
 .mask { animation: mask-in .2s ease both; }
 @keyframes mask-in { from { opacity: 0; } to { opacity: 1; } }
-/* 正文区滚动更顺 */
-.story { scroll-behavior: smooth; }
 /* 列表行按下去有回应 */
 .fg:active, .trow:active, .crow:active { transform: translateY(1px); }
 .fg, .trow, .crow { transition: transform .14s ease, color .14s ease; }
